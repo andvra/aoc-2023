@@ -38,78 +38,6 @@ std::vector<std::string> split_string(std::string s, std::string delimiter) {
     return ret;
 }
 
-//int aoc19_eval_rule(Process* p, int idx_rule, int x, int m, int a, int s) {
-//    auto& rule = p->rules[idx_rule];
-//    bool fulfil_condition = false;
-//    int* cur_val = nullptr;
-//    if (rule.action_data.action_id == Action_id::accept || rule.action_data.action_id == Action_id::reject) {
-//        bool correct_param = false;
-//        switch (rule.param_id) {
-//        case Param_id::x: correct_param = rule.param_id == Param_id::x; cur_val = &x; break;
-//        case Param_id::m: correct_param = rule.param_id == Param_id::m; cur_val = &m; break;
-//        case Param_id::a: correct_param = rule.param_id == Param_id::a; cur_val = &a; break;
-//        case Param_id::s: correct_param = rule.param_id == Param_id::s; cur_val = &s; break;
-//        }
-//        if (correct_param) {
-//            if (rule.operator_id == Operator_id::gt && *cur_val > rule.val) {
-//                fulfil_condition = true;
-//            }
-//            if (rule.operator_id == Operator_id::lt && *cur_val < rule.val) {
-//                fulfil_condition = true;
-//            }
-//        }
-//    }
-//    if (rule.operator_id == Operator_id::none) {
-//        if (rule.action_data.action_id == Action_id::accept) {
-//            return x * m * a * s;
-//        }
-//        if (rule.action_data.action_id == Action_id::reject) {
-//            return 0;
-//        }
-//        if (rule.action_data.action_id == Action_id::move) {
-//            return aoc19_eval_rule(&processes[rule.action_data.move_to_id], 0, x, m, a, s);
-//        }
-//    }
-//    else {
-//        //int other_val = 0;
-//        //if (fulfil_condition && rule.operator_id == Operator_id::gt && idx_rule < p->rules.size() - 1) {
-//        //    other_val = aoc19_eval_rule(p, idx_rule + 1, x, m, a, s);
-//        //}
-//        if (rule.action_data.action_id == Action_id::accept) {
-//            int this_val = x * m * a * s;
-//            int other_val = 0;
-//            if (idx_rule < p->rules.size() - 1) {
-//                *cur_val = rule.val - 1;
-//                other_val = aoc19_eval_rule(p, idx_rule + 1, x, m, a, s);
-//            }
-//            if (rule.operator_id == Operator_id::gt) {
-//                if (fulfil_condition) {
-//                    return std::max(this_val, other_val);
-//                }
-//                else {
-//                    return other_val;
-//                }
-//            }
-//            else {
-//                if (fulfil_condition) {
-//                    return this_val;
-//                }
-//                else {
-//                    return other_val;
-//                }
-//            }
-//        }
-//        if (rule.action_data.action_id == Action_id::reject) {
-//            if (fulfil_condition && idx_rule < p->rules.size() - 1) {
-//
-//            }
-//            if (rule.action_data.action_id == Action_id::move) {
-//                return x * m * a * s;
-//            }
-//        }
-//    }
-//}
-
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_test.txt");
@@ -350,13 +278,15 @@ void aoc19() {
     };
 
     std::vector<Rule_data> rule_data_vector;
-    rule_data_vector.push_back({ &start_process->rules[0],false,1,4000,1,4000,1,4000,1,4000,{} });
+    rule_data_vector.push_back({ &start_process->rules[0],false,1,4000,1,4000,1,4000,1,4000,false,{} });
 
     auto shrink_range = [](Rule_data* rule_data) {
         int* the_min;
         int* the_max;
         Rule* rule = rule_data->rule;
         Minmax_values cur_vals = rule_data->vals;
+        cur_vals.valid = false;
+
         switch (rule->param_id) {
         case Param_id::x: the_min = &cur_vals.xmin; the_max = &cur_vals.xmax; break;
         case Param_id::m: the_min = &cur_vals.mmin; the_max = &cur_vals.mmax; break;
@@ -364,39 +294,31 @@ void aoc19() {
         case Param_id::s: the_min = &cur_vals.smin; the_max = &cur_vals.smax; break;
         }
 
+        int initial_min = *the_min;
+        int initial_max = *the_max;
+
+        *the_min = rule->val + 1;
+        Minmax_values vals_above = cur_vals;
+        if (*the_max >= *the_min) {
+            vals_above.valid = true;
+        }
+        *the_min = initial_min;
+        *the_max = rule->val - 1;
+        Minmax_values vals_below = cur_vals;
+        if (*the_max >= *the_min) {
+            vals_below.valid = true;
+        }
+
         std::vector<Minmax_values> minmax_values = {};
         // Shrink to above and below the criteria
         // First set is if we meet the criteria. Second is if not
         if (rule->operator_id == Operator_id::gt) {
-            cur_vals.valid = false;
-            auto min_orig = *the_min;
-            *the_min = rule->val + 1;
-            if (*the_max > *the_min) {
-                cur_vals.valid = true;
-            }
-            minmax_values.push_back(cur_vals);
-
-            cur_vals.valid = false;
-            *the_min = min_orig;
-            *the_max = rule->val - 1;
-            if (*the_max > *the_min) {
-                cur_vals.valid = true;
-            }
-            minmax_values.push_back(cur_vals);
+            minmax_values.push_back(vals_above);
+            minmax_values.push_back(vals_below);
         }
         if (rule->operator_id == Operator_id::lt) {
-            cur_vals.valid = false;
-            if (*the_max > *the_min && *the_max < rule->val) {
-                cur_vals.valid = true;
-            }
-            minmax_values.push_back(cur_vals);
-
-            cur_vals.valid = false;
-            *the_max = rule->val - 1;
-            if (*the_max > *the_min) {
-                cur_vals.valid = true;
-            }
-            minmax_values.push_back(cur_vals);
+            minmax_values.push_back(vals_below);
+            minmax_values.push_back(vals_above);
         }
 
         return minmax_values;
@@ -408,12 +330,11 @@ void aoc19() {
         Rule* rule = rule_data_vector[idx_progress].rule;
         bool use_action_data = false;
 
-        auto shrinked = shrink_range(&rule_data_vector[idx_progress]);
-
         if (rule->operator_id == Operator_id::none) {
             use_action_data = true;
         }
         if (rule->operator_id == Operator_id::gt || rule->operator_id == Operator_id::lt) {
+            auto shrinked = shrink_range(&rule_data_vector[idx_progress]);
             if (shrinked[0].valid) {
                 rule_data_vector[idx_progress].vals = shrinked[0];
                 use_action_data = true;
@@ -427,7 +348,6 @@ void aoc19() {
             case Action_id::accept: rule_data_vector[idx_progress].accepted = true; break;
             case Action_id::reject: break;
             case Action_id::move:
-                rule_data_vector[idx_progress].accepted = false;
                 auto r = &processes[rule->action_data.move_to_id].rules[0];
                 rule_data_vector.push_back({ r,false,rule_data_vector[idx_progress].vals,rule_data_vector[idx_progress].rule_chain });
                 break;
@@ -435,20 +355,6 @@ void aoc19() {
         }
         idx_progress++;
     }
-
-    /*
-px{a<2006:qkq,m>2090:A,rfg}
-pv{a>1716:R,A}
-lnx{m>1548:A,A}
-rfg{s<537:gd,x>2440:R,A}
-qs{s>3448:A,lnx}
-qkq{x<1416:A,crn}
-crn{x>2662:A,R}
-in{s<1351:px,qqz}
-qqz{s>2770:qs,m<1801:hdj,R}
-gd{a>3333:R,R}
-hdj{m>838:A,pv}
-*/
 
     unsigned long long max_val = 0;
     Rule_data* max_rule_data = nullptr;
@@ -471,6 +377,9 @@ hdj{m>838:A,pv}
     }
     // TODO: min/max för "xmas" i varje flöde. Undvik sedan att räkna överlapp med de resulterande 4d-boxarna dubbelt
     std::cout << "Tot: " << tot_val << " Max: " << max_val << std::endl;
+    std::cout << "AOC19-2: " << tot_val << std::endl;
+    // TODO: Målvärde, test: 167409079868000
+
 }
 
 int main() {
