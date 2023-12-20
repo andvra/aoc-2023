@@ -40,7 +40,7 @@ std::vector<std::string> split_string(std::string s, std::string delimiter) {
 
 void aoc19() {
     bool is_rules = true;
-    auto lines = read_file("aoc19_test.txt");
+    auto lines = read_file("aoc19_real.txt");
     std::vector<std::string> line_rules = {};
     std::vector<std::string> line_parts = {};
 
@@ -281,8 +281,8 @@ void aoc19() {
     rule_data_vector.push_back({ &start_process->rules[0],false,1,4000,1,4000,1,4000,1,4000,false,{} });
 
     auto shrink_range = [](Rule_data* rule_data) {
-        int* the_min;
-        int* the_max;
+        int* the_min = nullptr;
+        int* the_max = nullptr;
         Rule* rule = rule_data->rule;
         Minmax_values cur_vals = rule_data->vals;
         cur_vals.valid = false;
@@ -294,16 +294,19 @@ void aoc19() {
         case Param_id::s: the_min = &cur_vals.smin; the_max = &cur_vals.smax; break;
         }
 
-        int initial_min = *the_min;
-        int initial_max = *the_max;
+        int add_above = rule->operator_id == Operator_id::gt ? 1 : 0;
+        int add_below = rule->operator_id == Operator_id::gt ? 0 : -1;
 
-        *the_min = rule->val + 1;
+        int initial_min = *the_min;
+
+        *the_min = rule->val + add_above;
         Minmax_values vals_above = cur_vals;
         if (*the_max >= *the_min) {
             vals_above.valid = true;
         }
+
         *the_min = initial_min;
-        *the_max = rule->val - 1;
+        *the_max = rule->val + add_below;
         Minmax_values vals_below = cur_vals;
         if (*the_max >= *the_min) {
             vals_below.valid = true;
@@ -375,11 +378,8 @@ void aoc19() {
             }
         }
     }
-    // TODO: min/max för "xmas" i varje flöde. Undvik sedan att räkna överlapp med de resulterande 4d-boxarna dubbelt
-    std::cout << "Tot: " << tot_val << " Max: " << max_val << std::endl;
-    std::cout << "AOC19-2: " << tot_val << std::endl;
-    // TODO: Målvärde, test: 167409079868000
 
+    std::cout << "AOC19-2: " << tot_val << std::endl;
 }
 
 int main() {
