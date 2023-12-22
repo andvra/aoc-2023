@@ -382,8 +382,136 @@ void aoc19() {
     std::cout << "AOC19-2: " << tot_val << std::endl;
 }
 
+void aoc20() {
+    enum class Module_type { broadcast, flipflop, con, output};
+    struct Module {
+        int id;
+        std::string name;
+        Module_type type;
+        std::vector<Module*> src;
+        std::vector<Module*> dst;
+        bool is_on = false;
+    };
+    std::vector<Module> modules = {};
+
+    auto lines = read_file("aoc20_real.txt");
+    std::vector<std::vector<std::string>> line_parts = {};
+
+    for (auto& line : lines) {
+        auto ss = split_string(line, " -> ");
+        ss[1] = ss[1].substr(3);
+        auto dest_strings = split_string(ss[1], ",");
+        std::vector<std::string> parts = {};
+        parts.push_back(ss[0]);
+        parts.push_back(dest_strings[0]);
+        for (int i = 1; i < dest_strings.size(); i++) {
+            parts.push_back(dest_strings[i].substr(1));
+        }
+        line_parts.push_back(parts);
+    }
+
+    for (int idx_module = 0; idx_module < line_parts.size(); idx_module++) {
+        Module_type module_type = {};
+        std::string name = {};
+        switch (line_parts[idx_module][0][0]) {
+        case 'b': module_type = Module_type::broadcast; name = line_parts[idx_module][0].substr(0); break;
+        case '%': module_type = Module_type::flipflop; name = line_parts[idx_module][0].substr(1); break;
+        case '&': module_type = Module_type::con; name = line_parts[idx_module][0].substr(1); break;
+        }
+        modules.push_back({ idx_module, name, module_type, {}, {} });
+    }
+
+    modules.push_back({ -1,"output",Module_type::output,{}, {} });
+    int idx_output = modules.size() - 1;
+
+    for (int idx_module = 0; idx_module < line_parts.size(); idx_module++) {
+        for (int idx_dest = 1; idx_dest < line_parts[idx_module].size(); idx_dest++) {
+            std::string name = line_parts[idx_module][idx_dest];
+            if (name == "output") {
+                modules[idx_module].dst.push_back(&modules[idx_output]);
+            }
+            else {
+                for (int i = 0; i < modules.size(); i++) {
+                    if (modules[i].name == name) {
+                        modules[idx_module].dst.push_back(&modules[i]);
+                        modules[i].src.push_back(&modules[idx_module]);
+                    }
+                }
+            }
+        }
+    }
+
+    Module* broadcaster = nullptr;
+    for (auto& m : modules) {
+        if (m.name == "broadcaster") {
+            broadcaster = &m;
+            break;
+        }
+    }
+
+    /*
+
+broadcaster -> a, b, c
+%a -> b
+%b -> c
+%c -> inv
+&inv -> a
+
+
+broadcaster -> a
+%a -> inv, con
+&inv -> b
+%b -> con
+&con -> output
+
+
+*/
+
+    int num_presses = 1000;
+    int low_sent = 0;
+    int high_sent = 0;
+    for (int idx_press = 0; idx_press < num_presses; idx_press++) {
+        bool done = false;
+        low_sent++; // Press the button
+        std::vector<Module*> to_process = { broadcaster };
+        while (!done) {
+            std::vector<Module*> new_to_process = { };
+            for (auto& m : to_process) {
+                low_sent += m->is_on ? 0 : m->dst.size();
+                high_sent += m->is_on ? m->dst.size() : 0;
+                for (auto dst : m->dst) {
+                    switch (dst->type) {
+                    case Module_type::flipflop:
+                        if (!m->is_on) {
+                            dst->is_on = !dst->is_on;
+                            new_to_process.push_back(dst);
+                        }
+                        break;
+                    case Module_type::con:
+                        bool all_high = true;
+                        for (auto& src : dst->src) {
+                            if (!src->is_on) {
+                                all_high = false;
+                            }
+                        }
+                        dst->is_on = !all_high;
+                        new_to_process.push_back(dst);
+                        break;
+                    }
+                }
+            }
+            to_process = new_to_process;
+            done = to_process.size() == 0;
+        }
+    }
+
+    std::cout << low_sent << " " << high_sent << " " << low_sent * high_sent << std::endl;
+}
+
 int main() {
-	aoc19();
+	//aoc19();
+    aoc20();
 
 	return 0;
+
 }
