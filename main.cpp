@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <set>
+#include <chrono>
 
 std::vector<std::string> read_file(std::string fn) {
     std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
@@ -449,56 +450,150 @@ void aoc20() {
         }
     }
 
-    int num_presses = 1'000'000;
-    int low_sent = 0;
-    int high_sent = 0;
-    int num_presses_for_rx = -1;
-    for (int idx_press = 0; idx_press < num_presses; idx_press++) {
-        bool done = false;
+    Module* lb = nullptr;
+    for (auto& m : modules) {
+        // LB is the parent of rx
+        if (m.name == "lb") {
+            lb = &m;
+            break;
+        }
+    }
+    std::vector<Module*> lb_src = {};
+    for (auto m : lb->src) {
+        lb_src.push_back(m);
+    }
+
+    size_t num_presses = 100000;
+    size_t low_sent = 0;
+    size_t high_sent = 0;
+    size_t num_presses_for_rx = 0;
+    int max_num_to_process = 100;
+    bool done = false;
+    int cur_process_count = 0;
+    int next_process_count = 0;
+    int idx_buffer_read = 0;
+    int idx_buffer_write = 1;
+    int ctn_added = 0;
+    int idx_p = 0;
+    bool all_high = false;
+    std::vector<Module*> to_process(2 * max_num_to_process);
+    size_t res_pt1 = 0;
+    size_t progress_print_interval = num_presses / 100;
+    size_t progress_next_print = progress_print_interval;
+    auto t_start = std::chrono::high_resolution_clock::now();
+    std::vector<std::vector<int>> lb_low_push(lb_src.size());
+    for (size_t idx_press = 0; idx_press < num_presses; idx_press++) {
+        if (idx_press == progress_next_print) {
+            auto t_current = std::chrono::high_resolution_clock::now();
+            auto duration = duration_cast<std::chrono::seconds>(t_current - t_start);
+            std::cout << 100.0f * idx_press / (float)num_presses << "% done (" << duration.count() << "s)" << std::endl;
+            progress_next_print += progress_print_interval;
+        }
         low_sent++; // Press the button
-        std::vector<Module*> to_process = { broadcaster };
+        done = false;
+        cur_process_count = 0;
+        next_process_count = 0;
+        idx_buffer_read = 0;
+        idx_buffer_write = 1;
+        to_process[idx_buffer_read * max_num_to_process + cur_process_count++] = broadcaster;
+
         while (!done) {
-            std::vector<Module*> new_to_process = { };
-            for (auto& m : to_process) {
-                if (num_presses_for_rx == -1 && m->name == "rx" && !m->src[0]->is_on) {
-                    num_presses_for_rx = idx_press + 1;
-                }
+            ctn_added = 0;
+            for (idx_p = idx_buffer_read * max_num_to_process; idx_p < idx_buffer_read * max_num_to_process + cur_process_count; idx_p++) {
+                Module* m = to_process[idx_p];
                 low_sent += m->is_on ? 0 : m->dst.size();
                 high_sent += m->is_on ? m->dst.size() : 0;
                 for (auto dst : m->dst) {
+                    bool do_add_module = false;
                     switch (dst->type) {
-                    case Module_type::dummy: new_to_process.push_back(dst); break;
+                    case Module_type::dummy:
+                        do_add_module = true;
+                        break;
                     case Module_type::flipflop:
                         if (!m->is_on) {
                             dst->is_on = !dst->is_on;
-                            new_to_process.push_back(dst);
+                            do_add_module = true;
                         }
                         break;
                     case Module_type::con:
-                        bool all_high = true;
+                        all_high = true;
                         for (auto& src : dst->src) {
                             if (!src->is_on) {
                                 all_high = false;
                             }
                         }
                         dst->is_on = !all_high;
-                        new_to_process.push_back(dst);
+                        do_add_module = true;
+                        if (dst->is_on) {
+                            for (int idx_lb = 0; idx_lb < lb_src.size(); idx_lb++) {
+                                if (lb_src[idx_lb] == dst) {
+                                    lb_low_push[idx_lb].push_back(idx_press + 1);
+                                }
+                            }
+                        }
                         break;
+                    }
+                    if (do_add_module) {
+                        to_process[idx_buffer_write * max_num_to_process + ctn_added++] = dst;
                     }
                 }
             }
-            to_process = new_to_process;
-            done = to_process.size() == 0;
+            done = ctn_added == 0;
+            idx_buffer_read = (idx_buffer_read + 1) % 2;
+            idx_buffer_write = (idx_buffer_write + 1) % 2;
+            cur_process_count = ctn_added;
+        }
+        if (idx_press == 999) {
+            res_pt1 = low_sent * high_sent;
         }
     }
 
-    std::cout << "AOC20-1: " << low_sent * high_sent << std::endl;
+    // Offset / step
+    std::pair<unsigned long long, unsigned long long> steps[4] = {
+    };
+    for (int idx_name = 0; idx_name < lb_low_push.size(); idx_name++) {
+        steps[idx_name] = std::make_pair(lb_low_push[idx_name][0], lb_low_push[idx_name][1] - lb_low_push[idx_name][0]);
+        std::cout << lb_src[idx_name]->name << ": " << lb_low_push[idx_name][0] << ": " << lb_low_push[idx_name][1] - lb_low_push[idx_name][0] << ":" << lb_low_push[idx_name][2] - lb_low_push[idx_name][1] << std::endl;
+    }
+
+    bool is_ok;
+    int idx_check;
+    unsigned long long check_val;
+    int mod;
+    for (unsigned long long i = 0; i < 100'000'000'000; i++) {
+        check_val = steps[0].first + steps[0].second * i;
+        if (i % 100'000'000 == 0) {
+            std::cout << "Checking val " << check_val << std::endl;
+        }
+        is_ok = true;
+        for (idx_check = 1; idx_check < 4; idx_check++) {
+            mod = (check_val - steps[idx_check].first) % steps[idx_check].second;
+            if (mod != 0) {
+                is_ok = false;
+                break;
+            }
+        }
+        if (is_ok) {
+            num_presses_for_rx = check_val;
+            break;
+        }
+    }
+
+    std::cout << std::endl;
+
+    std::cout << "AOC20-1: " << res_pt1 << std::endl;
     std::cout << "AOC20-2: " << num_presses_for_rx << std::endl;
+    //130688333297869
 }
 
 int main() {
+    auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
     aoc20();
+    auto t_end = std::chrono::high_resolution_clock::now();
+
+    auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
+    std::cout << "Duration: " << duration.count() << "ms" << std::endl;
 
 	return 0;
 
