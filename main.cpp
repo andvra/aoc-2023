@@ -383,7 +383,7 @@ void aoc19() {
 }
 
 void aoc20() {
-    enum class Module_type { broadcast, flipflop, con, output};
+    enum class Module_type { broadcast, flipflop, con, dummy};
     struct Module {
         int id;
         std::string name;
@@ -421,23 +421,23 @@ void aoc20() {
         modules.push_back({ idx_module, name, module_type, {}, {} });
     }
 
-    modules.push_back({ -1,"output",Module_type::output,{}, {} });
-    int idx_output = modules.size() - 1;
-
     for (int idx_module = 0; idx_module < line_parts.size(); idx_module++) {
         for (int idx_dest = 1; idx_dest < line_parts[idx_module].size(); idx_dest++) {
             std::string name = line_parts[idx_module][idx_dest];
-            if (name == "output") {
-                modules[idx_module].dst.push_back(&modules[idx_output]);
-            }
-            else {
-                for (int i = 0; i < modules.size(); i++) {
-                    if (modules[i].name == name) {
-                        modules[idx_module].dst.push_back(&modules[i]);
-                        modules[i].src.push_back(&modules[idx_module]);
-                    }
+            int idx_swap = -1;
+            for (int i = 0; i < modules.size(); i++) {
+                if (modules[i].name == name) {
+                    idx_swap = i;
+                    break;
                 }
             }
+            if (idx_swap == -1) {
+                Module new_module = { modules.size(), name, Module_type::dummy , {}, {} };
+                modules.push_back(new_module);
+                idx_swap = modules.size() - 1;
+            }
+            modules[idx_module].dst.push_back(&modules[idx_swap]);
+            modules[idx_swap].src.push_back(&modules[idx_module]);
         }
     }
 
@@ -449,27 +449,10 @@ void aoc20() {
         }
     }
 
-    /*
-
-broadcaster -> a, b, c
-%a -> b
-%b -> c
-%c -> inv
-&inv -> a
-
-
-broadcaster -> a
-%a -> inv, con
-&inv -> b
-%b -> con
-&con -> output
-
-
-*/
-
-    int num_presses = 1000;
+    int num_presses = 1'000'000;
     int low_sent = 0;
     int high_sent = 0;
+    int num_presses_for_rx = -1;
     for (int idx_press = 0; idx_press < num_presses; idx_press++) {
         bool done = false;
         low_sent++; // Press the button
@@ -477,10 +460,14 @@ broadcaster -> a
         while (!done) {
             std::vector<Module*> new_to_process = { };
             for (auto& m : to_process) {
+                if (num_presses_for_rx == -1 && m->name == "rx" && !m->src[0]->is_on) {
+                    num_presses_for_rx = idx_press + 1;
+                }
                 low_sent += m->is_on ? 0 : m->dst.size();
                 high_sent += m->is_on ? m->dst.size() : 0;
                 for (auto dst : m->dst) {
                     switch (dst->type) {
+                    case Module_type::dummy: new_to_process.push_back(dst); break;
                     case Module_type::flipflop:
                         if (!m->is_on) {
                             dst->is_on = !dst->is_on;
@@ -505,7 +492,8 @@ broadcaster -> a
         }
     }
 
-    std::cout << low_sent << " " << high_sent << " " << low_sent * high_sent << std::endl;
+    std::cout << "AOC20-1: " << low_sent * high_sent << std::endl;
+    std::cout << "AOC20-2: " << num_presses_for_rx << std::endl;
 }
 
 int main() {
