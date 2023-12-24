@@ -731,6 +731,9 @@ void aoc22() {
         std::vector<Coord3i> cubes;
         std::set<Cube_extension*> supported_by;
         std::set<Cube_extension*> support_to;
+        bool operator==(const Cube_extension& a) const {
+            return a.id == id;
+        }
     };
 
     // Found this by scanning the input: 0 <= x,y <= 9
@@ -827,10 +830,49 @@ void aoc22() {
         }
     }
 
-    std::cout << "AOC22-1: " << cnt_possible_remove << std::endl;
+    auto occupied_z_original = occupied_z;
+    auto cube_extensions_original = cube_extensions;
+    int tot_moved = 0;
+    for (int idx_remove = 0; idx_remove < cube_extensions.size();idx_remove++) {
+        std::set<int> ids_moved = {};
+        occupied_z = occupied_z_original;
+        for (int i = 0; i < cube_extensions.size(); i++) {
+            cube_extensions[i].cubes = cube_extensions_original[i].cubes;
+        }
+        auto& to_remove = cube_extensions[idx_remove];
+        done = false;
+        steps_left = 100000;
+        while (!done && steps_left > 0) {
+            bool something_moved = false;
+            for (auto& el : cube_extensions) {
+                bool can_move = true;
+                for (auto& cube : el.cubes) {
+                    if (occupied_z[cube.x][cube.y][cube.z - 1] != nullptr && occupied_z[cube.x][cube.y][cube.z - 1] != &el && occupied_z[cube.x][cube.y][cube.z - 1] != &to_remove) {
+                        can_move = false;
+                    }
+                }
+                if (can_move) {
+                    ids_moved.insert(el.id);
+                    for (auto& cube : el.cubes) {
+                        occupied_z[cube.x][cube.y][cube.z] = nullptr;
+                    }
+                    for (auto& cube : el.cubes) {
+                        cube.z -= 1;
+                        occupied_z[cube.x][cube.y][cube.z] = &el;
+                    }
+                    something_moved = true;
+                }
+            }
+            steps_left--;
+            done = !something_moved;
+        }
+        tot_moved += ids_moved.size();
+    }
+    std::cout << std::endl;
 
-    // NB: z is downwards
-    // Found this by scanning the input: 0 <= x,y <= 9
+
+    std::cout << "AOC22-1: " << cnt_possible_remove << std::endl;
+    std::cout << "AOC22-2: " << tot_moved << std::endl;
 }
 
 int main() {
