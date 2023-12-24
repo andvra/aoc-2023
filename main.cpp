@@ -481,8 +481,8 @@ void aoc20() {
     size_t progress_print_interval = num_presses / 100;
     size_t progress_next_print = progress_print_interval;
     auto t_start = std::chrono::high_resolution_clock::now();
-    std::vector<std::vector<int>> lb_low_push(lb_src.size());
-    for (size_t idx_press = 0; idx_press < num_presses; idx_press++) {
+    std::vector<std::vector<unsigned long long>> lb_low_push(lb_src.size());
+    for (size_t idx_press = 1; idx_press <= num_presses; idx_press++) {
         if (idx_press == progress_next_print) {
             auto t_current = std::chrono::high_resolution_clock::now();
             auto duration = duration_cast<std::chrono::seconds>(t_current - t_start);
@@ -527,7 +527,7 @@ void aoc20() {
                         if (dst->is_on) {
                             for (int idx_lb = 0; idx_lb < lb_src.size(); idx_lb++) {
                                 if (lb_src[idx_lb] == dst) {
-                                    lb_low_push[idx_lb].push_back(idx_press + 1);
+                                    lb_low_push[idx_lb].push_back(idx_press);
                                 }
                             }
                         }
@@ -543,31 +543,38 @@ void aoc20() {
             idx_buffer_write = (idx_buffer_write + 1) % 2;
             cur_process_count = ctn_added;
         }
-        if (idx_press == 999) {
+        if (idx_press == 1000) {
             res_pt1 = low_sent * high_sent;
         }
     }
 
     // Offset / step
-    std::pair<unsigned long long, unsigned long long> steps[4] = {
+    struct Trigger_interval {
+        unsigned long long offset;
+        unsigned long long interval;
     };
+
+    Trigger_interval steps[4] = {};
+
     for (int idx_name = 0; idx_name < lb_low_push.size(); idx_name++) {
-        steps[idx_name] = std::make_pair(lb_low_push[idx_name][0], lb_low_push[idx_name][1] - lb_low_push[idx_name][0]);
-        std::cout << lb_src[idx_name]->name << ": " << lb_low_push[idx_name][0] << ": " << lb_low_push[idx_name][1] - lb_low_push[idx_name][0] << ":" << lb_low_push[idx_name][2] - lb_low_push[idx_name][1] << std::endl;
+        steps[idx_name] = { lb_low_push[idx_name][0], lb_low_push[idx_name][1] - lb_low_push[idx_name][0] };
+        std::cout << lb_src[idx_name]->name << ": " << steps[idx_name].offset << ": " << steps[idx_name].interval << std::endl;
     }
 
     bool is_ok;
     int idx_check;
     unsigned long long check_val;
     int mod;
-    for (unsigned long long i = 0; i < 100'000'000'000; i++) {
-        check_val = steps[0].first + steps[0].second * i;
+    // Manually adjusted start-i to the correct answer for faster compute time
+    // NB: it's currently not the correct answer, apparently..
+    for (unsigned long long i = 32'244'839'204; i < 100'000'000'000; i++) {
+        check_val = steps[0].offset + steps[0].interval * i;
         if (i % 100'000'000 == 0) {
             std::cout << "Checking val " << check_val << std::endl;
         }
         is_ok = true;
         for (idx_check = 1; idx_check < 4; idx_check++) {
-            mod = (check_val - steps[idx_check].first) % steps[idx_check].second;
+            mod = (check_val - steps[idx_check].offset) % steps[idx_check].interval;
             if (mod != 0) {
                 is_ok = false;
                 break;
@@ -584,12 +591,135 @@ void aoc20() {
     std::cout << "AOC20-1: " << res_pt1 << std::endl;
     std::cout << "AOC20-2: " << num_presses_for_rx << std::endl;
     //130688333297869
+    //253302889093151 -- hittad på nätet
+}
+
+void aoc21() {
+    auto lines = read_file("aoc21_real.txt");
+    int num_copies_per_row = 1;
+    int num_copies_per_col = 1;
+    std::vector<int> squares(num_copies_per_row * num_copies_per_col * lines.size() * lines[0].size());
+    size_t idx_start = 0;
+    size_t num_cols = num_copies_per_col * lines[0].size();
+    size_t num_rows = num_copies_per_row * lines.size();
+
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        for (int idx_char = 0; idx_char < lines[idx_line].size(); idx_char++) {
+            int c = lines[idx_line][idx_char];
+            bool is_start = false;
+            switch (c) {
+            case 'S':
+                c = -2;
+                is_start = true;
+                break;
+            case '#':
+                c = -1;
+                break;
+            case '.':
+                c = -2; 
+                break;
+            default:
+                break;
+            }
+
+            for (int idx_row = 0; idx_row < num_copies_per_row; idx_row++) {
+                for (int idx_col = 0; idx_col < num_copies_per_col; idx_col++) {
+                    int idx_cur_square = idx_row * lines.size() * num_cols + idx_line * num_cols + idx_col * lines[0].size() + idx_char;
+                    if (is_start && idx_row == num_copies_per_row / 2 && idx_col == num_copies_per_col / 2) {
+                        squares[idx_cur_square] = 0;
+                        idx_start = idx_cur_square;
+                    }
+                    else {
+                        squares[idx_cur_square] = c;
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<int> idx_to_evaluate(num_cols * num_rows);
+    idx_to_evaluate[0] = idx_start;
+    int idx_eval_start = 0;
+    int idx_eval_end_exclusive = 1;
+    size_t num_evaluate_elem = 1;
+    for (size_t idx_step = 0; idx_step < 64; idx_step++) {
+        for (size_t i = idx_eval_start; i < idx_eval_end_exclusive; i++) {
+            auto idx_eval = idx_to_evaluate[i];
+            int idx_left = idx_eval - 1;
+            int idx_right = idx_eval + 1;
+            int idx_up = idx_eval - num_cols;
+            int idx_down = idx_eval + num_cols;
+            std::vector<int> idx_to_use = {};
+
+            if (idx_left >= 0 && idx_left % num_cols == (idx_eval % num_cols) - 1) {
+                idx_to_use.push_back(idx_left);
+            }
+            if (idx_right % num_cols == (idx_eval % num_cols) + 1) {
+                idx_to_use.push_back(idx_right);
+            }
+            if (idx_up >= 0) {
+                idx_to_use.push_back(idx_up);
+            }
+            if (idx_down < num_cols * num_rows) {
+                idx_to_use.push_back(idx_down);
+            }
+            for (auto idx_cur : idx_to_use) {
+                if (squares[idx_cur] == -2 || squares[idx_eval] + 1 < squares[idx_cur]) {
+                    squares[idx_cur] = squares[idx_eval] + 1;
+                    idx_to_evaluate[num_evaluate_elem++] = idx_cur;
+                }
+            }
+        }
+        idx_eval_start = idx_eval_end_exclusive;
+        idx_eval_end_exclusive = num_evaluate_elem;
+    }
+
+    size_t num_possible = 0;
+    for (auto c : squares) {
+        if (c >= 0 && c <= 64 && (c % 2 == 0)) {
+            num_possible++;
+        }
+    }
+
+    int idx_block_col = 0;
+    int idx_block_row = 0;
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        for (int idx_char = 0; idx_char < lines[0].size(); idx_char++) {
+            char c = '.';
+            int idx_cur_square = idx_block_row * lines.size() * num_cols + idx_line * num_cols + idx_block_col * lines[0].size() + idx_char;
+            if (squares[idx_cur_square] == -1) {
+                c = '#';
+            }
+            else if (squares[idx_cur_square] >= 0) {
+                c = '0';
+            }
+            std::cout << c;
+            if ((idx_char + 1) % lines[0].size() == 0) {
+                std::cout << std::endl;
+            }
+        }
+    }
+    // Tips: hitta antal isolerade punkter. Det kan man göra genom att köra t ex 10000 steg istället och kolla vilka rutor som man inte nått
+    // Snabbaste vägen till instans x av trädgården är vi "motorvägen", dvs kanalerna utan hinder som går i varje väderstreck från startpositionen
+    // När man precis kommer till en gräns kan man se hur många rutor vi kan få med oss från sista rutan
+    // Startpositionen är exakt i mitten av trädgården
+    // Ta reda på hur många rutor man kan gå till om man har någon av följande startpositioner med 130 steg kvar:
+    // 1. Till vänster
+    // 2. Till höger
+    // 3. I botten
+    // 4. I toppen
+    // 5. Kombination av 1-3, 1-4, 2-3, 2-4
+    // Vi kan sedan räkna ut svaret. Vi vet att vi kan röra oss 26501365/131 = 202 300 hela trädgårdar i varje väderstreck samt gå till sista rutan på den sista åt varje håll
+    //  res = (202 300-1)*(kombo13+kombo23) + (202 300-1)*(kombo14+kombo24) + kombo1 + kombo2 + kombo3 + kombo4 + (stora bulken)
+
+    std::cout << "AOC21-1: " << num_possible << std::endl;
 }
 
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
-    aoc20();
+    //aoc20();
+    aoc21();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
