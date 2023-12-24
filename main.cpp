@@ -596,8 +596,8 @@ void aoc20() {
 
 void aoc21() {
     auto lines = read_file("aoc21_real.txt");
-    int num_copies_per_row = 1;
-    int num_copies_per_col = 1;
+    int num_copies_per_row = 11;
+    int num_copies_per_col = 11;
     std::vector<int> squares(num_copies_per_row * num_copies_per_col * lines.size() * lines[0].size());
     size_t idx_start = 0;
     size_t num_cols = num_copies_per_col * lines[0].size();
@@ -616,7 +616,7 @@ void aoc21() {
                 c = -1;
                 break;
             case '.':
-                c = -2; 
+                c = -2;
                 break;
             default:
                 break;
@@ -637,12 +637,12 @@ void aoc21() {
         }
     }
 
-    std::vector<int> idx_to_evaluate(num_cols * num_rows);
+    std::vector<int> idx_to_evaluate(num_cols* num_rows);
     idx_to_evaluate[0] = idx_start;
     int idx_eval_start = 0;
     int idx_eval_end_exclusive = 1;
     size_t num_evaluate_elem = 1;
-    for (size_t idx_step = 0; idx_step < 64; idx_step++) {
+    for (size_t idx_step = 0; idx_step < 65 + 131 * 5; idx_step++) {
         for (size_t i = idx_eval_start; i < idx_eval_end_exclusive; i++) {
             auto idx_eval = idx_to_evaluate[i];
             int idx_left = idx_eval - 1;
@@ -681,38 +681,38 @@ void aoc21() {
         }
     }
 
-    int idx_block_col = 0;
-    int idx_block_row = 0;
-    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
-        for (int idx_char = 0; idx_char < lines[0].size(); idx_char++) {
-            char c = '.';
-            int idx_cur_square = idx_block_row * lines.size() * num_cols + idx_line * num_cols + idx_block_col * lines[0].size() + idx_char;
-            if (squares[idx_cur_square] == -1) {
-                c = '#';
+    for (int idx_block_row = 0; idx_block_row < num_copies_per_row; idx_block_row++) {
+        for (int idx_block_col = 0; idx_block_col < num_copies_per_col; idx_block_col++) {
+            int block_possible = 0;
+            for (int idx_row = 0; idx_row < lines.size(); idx_row++) {
+                for (int idx_col = 0; idx_col < lines[0].size(); idx_col++) {
+                    int idx_cur = (idx_block_row * lines.size() + idx_row) * num_cols + idx_block_col * lines[0].size() + idx_col;
+                    if (squares[idx_cur] >= 0 && (squares[idx_cur] % 2 == 0)) {
+                        block_possible++;
+                    }
+                }
             }
-            else if (squares[idx_cur_square] >= 0) {
-                c = '0';
-            }
-            std::cout << c;
-            if ((idx_char + 1) % lines[0].size() == 0) {
-                std::cout << std::endl;
-            }
+            std::cout << block_possible << "\t";
         }
+        std::cout << std::endl;
     }
-    // Tips: hitta antal isolerade punkter. Det kan man göra genom att köra t ex 10000 steg istället och kolla vilka rutor som man inte nått
-    // Snabbaste vägen till instans x av trädgården är vi "motorvägen", dvs kanalerna utan hinder som går i varje väderstreck från startpositionen
-    // När man precis kommer till en gräns kan man se hur många rutor vi kan få med oss från sista rutan
-    // Startpositionen är exakt i mitten av trädgården
-    // Ta reda på hur många rutor man kan gå till om man har någon av följande startpositioner med 130 steg kvar:
-    // 1. Till vänster
-    // 2. Till höger
-    // 3. I botten
-    // 4. I toppen
-    // 5. Kombination av 1-3, 1-4, 2-3, 2-4
-    // Vi kan sedan räkna ut svaret. Vi vet att vi kan röra oss 26501365/131 = 202 300 hela trädgårdar i varje väderstreck samt gå till sista rutan på den sista åt varje håll
-    //  res = (202 300-1)*(kombo13+kombo23) + (202 300-1)*(kombo14+kombo24) + kombo1 + kombo2 + kombo3 + kombo4 + (stora bulken)
+
+    // Numbers below are extracted from the print above, where we see number of possibilities at the edges
+    // In between follows a simple pattern
+    unsigned long long num_gardens_across = (26501365 - 65) * 2 / 131 + 1;
+    unsigned long long val_first_row = 971 + 5859 + 992;
+    unsigned long long val_last_row = 974 + 5853 + 985;
+    unsigned long long val_middle_row = 5846 + 5866 + (7780 * (num_gardens_across - 2 + 1)) / 2 + (7769 * (num_gardens_across - 2 - 1)) / 2;
+    unsigned long long val_others = 0;
+    for (unsigned long long i = 1; i < num_gardens_across / 2; i++) {
+        unsigned long long cur_gardens_across = i * 2 + 3;
+        unsigned long long val_from_above = 971 + 992 + 6810 + 6818 + (7780 * (cur_gardens_across - 4 + 1)) / 2 + (7769 * (cur_gardens_across - 4 - 1)) / 2;
+        unsigned long long val_from_below = 974 + 985 + 6805 + 6817 + (7780 * (cur_gardens_across - 4 + 1)) / 2 + (7769 * (cur_gardens_across - 4 - 1)) / 2;
+        val_others += val_from_above + val_from_below;
+    }
 
     std::cout << "AOC21-1: " << num_possible << std::endl;
+    std::cout << "AOC21-2: " << val_first_row + val_last_row + val_middle_row + val_others << std::endl;
 }
 
 int main() {
