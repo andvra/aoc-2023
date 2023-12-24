@@ -715,11 +715,130 @@ void aoc21() {
     std::cout << "AOC21-2: " << val_first_row + val_last_row + val_middle_row + val_others << std::endl;
 }
 
+void aoc22() {
+    auto lines = read_file("aoc22_real.txt");
+
+    struct Coord3i {
+        int x;
+        int y;
+        int z;
+    };
+
+    struct Cube_extension {
+        int id;
+        Coord3i e1;
+        Coord3i e2;
+        std::vector<Coord3i> cubes;
+        std::set<Cube_extension*> supported_by;
+        std::set<Cube_extension*> support_to;
+    };
+
+    // Found this by scanning the input: 0 <= x,y <= 9
+    std::vector<std::vector<std::vector<Cube_extension*>>> occupied_z(10);
+    for (auto& x : occupied_z) {
+        x.resize(10);
+        for (auto& y : x) {
+            // There are z-values in the range 1-305. With 306 elements, we can index
+            //  with the actual z-value
+            y.resize(306);
+        }
+    }
+
+    std::vector<Cube_extension> cube_extensions = {};
+    Cube_extension ground = { 0,0,1,9,9,1 };
+    int id = 65;
+    for (auto& line : lines) {
+        auto parts = split_string(line, "~");
+        auto e1s = split_string(parts[0], ",");
+        auto e2s = split_string(parts[1], ",");
+        Coord3i e1 = { std::atoi(e1s[0].c_str()),std::atoi(e1s[1].c_str()) ,std::atoi(e1s[2].c_str()) };
+        Coord3i e2 = { std::atoi(e2s[0].c_str()),std::atoi(e2s[1].c_str()) ,std::atoi(e2s[2].c_str()) };
+        cube_extensions.push_back({ id++, e1,e2 });
+    }
+
+    for (auto& el : cube_extensions) {
+        int min_x = std::min(el.e1.x, el.e2.x);
+        int min_y = std::min(el.e1.y, el.e2.y);
+        int min_z = std::min(el.e1.z, el.e2.z);
+        int max_x = std::max(el.e1.x, el.e2.x);
+        int max_y = std::max(el.e1.y, el.e2.y);
+        int max_z = std::max(el.e1.z, el.e2.z);
+        for (int x = min_x; x <= max_x; x++) {
+            for (int y = min_y; y <= max_y; y++) {
+                for (int z = min_z; z <= max_z; z++) {
+                    occupied_z[x][y][z] = &el;
+                    el.cubes.push_back({ x,y,z });
+                }
+            }
+        }
+    }
+    for (int x = 0; x < 10; x++) {
+        for (int y = 0; y < 10; y++) {
+            occupied_z[x][y][0] = &ground;
+        }
+    }
+
+    bool done = false;
+    int steps_left = 100000;
+    while (!done && steps_left > 0) {
+        bool something_moved = false;
+        for (auto& el : cube_extensions) {
+            bool can_move = true;
+            for (auto& cube : el.cubes) {
+                if (occupied_z[cube.x][cube.y][cube.z - 1] != nullptr && occupied_z[cube.x][cube.y][cube.z - 1] != &el) {
+                    can_move = false;
+                }
+            }
+            if (can_move) {
+                for (auto& cube : el.cubes) {
+                    occupied_z[cube.x][cube.y][cube.z] = nullptr;
+                }
+                for (auto& cube : el.cubes) {
+                    cube.z -= 1;
+                    occupied_z[cube.x][cube.y][cube.z] = &el;
+                }
+                something_moved = true;
+            }
+        }
+        steps_left--;
+        done = !something_moved;
+    }
+
+    for (auto& el : cube_extensions) {
+        bool can_move = true;
+        for (auto& cube : el.cubes) {
+            if (occupied_z[cube.x][cube.y][cube.z - 1] != nullptr && occupied_z[cube.x][cube.y][cube.z - 1] != &el) {
+                el.supported_by.insert(occupied_z[cube.x][cube.y][cube.z - 1]);
+                occupied_z[cube.x][cube.y][cube.z - 1]->support_to.insert(&el);
+            }
+        }
+    }
+
+    int cnt_possible_remove = 0;
+    for (auto& el : cube_extensions) {
+        bool can_remove = true;
+        for (auto x : el.support_to) {
+            if (x->supported_by.size() == 1) {
+                can_remove = false;
+            }
+        }
+        if (can_remove) {
+            cnt_possible_remove++;
+        }
+    }
+
+    std::cout << "AOC22-1: " << cnt_possible_remove << std::endl;
+
+    // NB: z is downwards
+    // Found this by scanning the input: 0 <= x,y <= 9
+}
+
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
     //aoc20();
-    aoc21();
+    //aoc21();
+    aoc22();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
