@@ -870,17 +870,17 @@ void aoc22() {
     }
     std::cout << std::endl;
 
-
     std::cout << "AOC22-1: " << cnt_possible_remove << std::endl;
     std::cout << "AOC22-2: " << tot_moved << std::endl;
 }
 
 void aoc23() {
-    auto lines = read_file("aoc23_test.txt");
+    auto lines = read_file("aoc23_real.txt");
     int num_cols = lines[0].size();
     int num_rows = lines.size();
     int max_num_active_branches = 1000;
     int num_path_tiles = 0;
+    int num_slope_titles = 0;
     std::vector<std::vector<char>> tiles(num_rows, std::vector<char>(num_cols, 0));
 
     for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
@@ -894,16 +894,20 @@ void aoc23() {
             if (c == '.') {
                 num_path_tiles++;
             }
+            if (c == '>' || c == '<' || c == '^' || c == 'v') {
+                num_slope_titles++;
+            }
         }
     }
 
-    std::vector<std::vector<bool>> is_taken_for_id_base(num_path_tiles, std::vector<bool>(max_num_active_branches, false));
+    std::vector<std::vector<bool>> is_taken_for_id_base(num_path_tiles + num_slope_titles, std::vector<bool>(max_num_active_branches, false));
     std::vector<std::vector<std::vector<bool>*>> is_taken_for_id(num_rows, std::vector<std::vector<bool>*>(num_cols, nullptr));
 
     int is_taken_cnt = 0;
     for (int idx_row = 0; idx_row < num_rows; idx_row++) {
         for (int idx_col = 0; idx_col < num_cols; idx_col++) {
-            if (tiles[idx_row][idx_col] == '.') {
+            auto c = tiles[idx_row][idx_col];
+            if (c == '>' || c == '<' || c == '^' || c == 'v' || c == '.' ) {
                 is_taken_for_id[idx_row][idx_col] = &is_taken_for_id_base[is_taken_cnt++];
             }
         }
@@ -933,6 +937,7 @@ void aoc23() {
     Coord2i last_pos_before_move = {};
     Coord2i tiles_to_ignore_in_new_branch[2];
     int num_max_steps = num_cols * num_rows;
+    int max_steps_for_a_path = 0;
     for (int idx_step = 0; idx_step < num_max_steps; idx_step++) {
         for (int idx_branch = 0; idx_branch < max_num_active_branches; idx_branch++) {
             if (!id_is_available[idx_branch]) {
@@ -954,8 +959,9 @@ void aoc23() {
                         cur_col >= 0 &&
                         cur_col < num_cols &&
                         tiles[cur_row][cur_col] != '#' &&
-                        is_taken_for_id[cur_row][cur_col] != nullptr &&
-                        (*is_taken_for_id[cur_row][cur_col])[idx_branch] == false;
+                        (tiles[cur_row][cur_col] != '.' ||
+                            (is_taken_for_id[cur_row][cur_col] != nullptr &&
+                            (*is_taken_for_id[cur_row][cur_col])[idx_branch] == false));
                     if (can_move_to_tile) {
                         cur_tile = tiles[cur_row][cur_col];
                     }
@@ -1016,6 +1022,9 @@ void aoc23() {
                 }
                 if (num_moved == 0) {
                     if (last_pos[idx_branch].row == num_rows - 1 && last_pos[idx_branch].col == num_cols - 2) {
+                        if (max_steps_for_a_path < walk_length[idx_branch]) {
+                            max_steps_for_a_path = walk_length[idx_branch];
+                        }
                         // We reached to finish line
                         std::cout << "Finished with length " << walk_length[idx_branch] << std::endl;
                     }
@@ -1029,22 +1038,11 @@ void aoc23() {
                     }
                 }
                 // TODO: Scanna input, finns det något trix där det inte går att gå ner en backe? Dvs det finns mur nedanför. 
-                // TODO: Hantera målgång. Rutan är på sista raden, näst sista kolumnen
             }
         }
     }
 
-
-
-    int a = 3;
-    // BFS. Ny gren varje gång det finns ett val att göra. Ha dessa data för varje gren:
-    //  - Besökta rutor
-    //  - Föregående ruta. Detta för att undvika söka där igen direkt
-    //  
-    //  För varje steg, skapa ny gren om det behövs.
-    //      Om grenen är i mål: tilldela poäng. Sätt till done
-    //      Om grenen kolliderar med sig själv, dvs kan inte komma till mål: 0 poäng. Sätt till done
-    //      Om grenen ej är klar: lägg till ett steg.
+    std::cout << "AOC23-1: " << max_steps_for_a_path << std::endl;
 }
 
 int main() {
