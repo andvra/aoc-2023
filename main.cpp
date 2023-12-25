@@ -875,12 +875,60 @@ void aoc22() {
     std::cout << "AOC22-2: " << tot_moved << std::endl;
 }
 
+void aoc23() {
+    auto lines = read_file("aoc23_real.txt");
+    int num_cols = lines[0].size();
+    int num_rows = lines.size();
+    int max_num_active_branches = 1000;
+    int num_path_tiles = 0;
+    std::vector<std::vector<char>> tiles(num_rows, std::vector<char>(num_cols, 0));
+
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        for (int idx_char = 0; idx_char < lines[idx_line].size(); idx_char++) {
+            tiles[idx_line][idx_char] = lines[idx_line][idx_char];
+        }
+    }
+
+    for (auto& r : tiles) {
+        for (auto& c : r) {
+            if (c == '.') {
+                num_path_tiles++;
+            }
+        }
+    }
+
+    std::vector<std::vector<bool>> is_taken_for_id_base(num_path_tiles, std::vector<bool>(max_num_active_branches, false));
+    std::vector<std::vector<std::vector<bool>*>> is_taken_for_id(num_rows, std::vector<std::vector<bool>*>(num_rows, nullptr));
+
+    int is_taken_cnt = 0;
+    for (int idx_row = 0; idx_row < num_rows; idx_row++) {
+        for (int idx_col = 0; idx_col < num_cols; idx_col++) {
+            if (tiles[idx_row][idx_col] == '.') {
+                is_taken_for_id[idx_row][idx_col] = &is_taken_for_id_base[is_taken_cnt++];
+            }
+        }
+    }
+
+
+
+    int a = 3;
+    // BFS. Ny gren varje gång det finns ett val att göra. Ha dessa data för varje gren:
+    //  - Besökta rutor
+    //  - Föregående ruta. Detta för att undvika söka där igen direkt
+    //  
+    //  För varje steg, skapa ny gren om det behövs.
+    //      Om grenen är i mål: tilldela poäng. Sätt till done
+    //      Om grenen kolliderar med sig själv, dvs kan inte komma till mål: 0 poäng. Sätt till done
+    //      Om grenen ej är klar: lägg till ett steg.
+}
+
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
     //aoc20();
     //aoc21();
-    aoc22();
+    //aoc22();
+    aoc23();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
