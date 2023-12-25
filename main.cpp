@@ -878,7 +878,7 @@ void aoc23() {
     auto lines = read_file("aoc23_real.txt");
     int num_cols = lines[0].size();
     int num_rows = lines.size();
-    int max_num_active_branches = 1000;
+    int max_num_active_branches = 1000000;
     int num_path_tiles = 0;
     int num_slope_titles = 0;
     std::vector<std::vector<char>> tiles(num_rows, std::vector<char>(num_cols, 0));
@@ -886,6 +886,15 @@ void aoc23() {
     for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
         for (int idx_char = 0; idx_char < lines[idx_line].size(); idx_char++) {
             tiles[idx_line][idx_char] = lines[idx_line][idx_char];
+        }
+    }
+
+    // Adjustment for part 2
+    for (auto& r : tiles) {
+        for (auto& c : r) {
+            if (c == '>' || c == '<' || c == '^' || c == 'v') {
+                c = '.';
+            }
         }
     }
 
@@ -912,6 +921,30 @@ void aoc23() {
             }
         }
     }
+
+    //// Look for dead ends - none found!
+    //for (int idx_row = 1; idx_row < num_rows - 1; idx_row++) {
+    //    for (int idx_col = 1; idx_col < num_cols - 1; idx_col++) {
+    //        auto c = tiles[idx_row][idx_col];
+    //        char neighborhood[4] = {
+    //            tiles[idx_row][idx_col + 1],
+    //            tiles[idx_row][idx_col - 1],
+    //            tiles[idx_row + 1][idx_col],
+    //            tiles[idx_row - 1][idx_col]
+    //        };
+    //        if (c == '.') {
+    //            int num_free = 0;
+    //            for (int i = 0; i < 4; i++) {
+    //                if (neighborhood[i] == '.') {
+    //                    num_free++;
+    //                }
+    //            }
+    //            if (num_free < 2) {
+    //                std::cout << "Found dead-end" << std::endl;
+    //            }
+    //        }
+    //    }
+    //}
 
     struct Coord2i {
         int row;
