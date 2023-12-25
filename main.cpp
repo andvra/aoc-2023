@@ -876,7 +876,7 @@ void aoc22() {
 }
 
 void aoc23() {
-    auto lines = read_file("aoc23_real.txt");
+    auto lines = read_file("aoc23_test.txt");
     int num_cols = lines[0].size();
     int num_rows = lines.size();
     int max_num_active_branches = 1000;
@@ -898,13 +898,138 @@ void aoc23() {
     }
 
     std::vector<std::vector<bool>> is_taken_for_id_base(num_path_tiles, std::vector<bool>(max_num_active_branches, false));
-    std::vector<std::vector<std::vector<bool>*>> is_taken_for_id(num_rows, std::vector<std::vector<bool>*>(num_rows, nullptr));
+    std::vector<std::vector<std::vector<bool>*>> is_taken_for_id(num_rows, std::vector<std::vector<bool>*>(num_cols, nullptr));
 
     int is_taken_cnt = 0;
     for (int idx_row = 0; idx_row < num_rows; idx_row++) {
         for (int idx_col = 0; idx_col < num_cols; idx_col++) {
             if (tiles[idx_row][idx_col] == '.') {
                 is_taken_for_id[idx_row][idx_col] = &is_taken_for_id_base[is_taken_cnt++];
+            }
+        }
+    }
+
+    struct Coord2i {
+        int row;
+        int col;
+    };
+    std::vector<bool> id_is_available(max_num_active_branches, true);
+    std::vector<Coord2i> last_pos(max_num_active_branches);
+    std::vector<int> walk_length(max_num_active_branches, 0);
+    id_is_available[0] = false;
+    (*is_taken_for_id[0][1])[0] = true;
+    last_pos[0] = { 0,1 };
+
+    bool can_move_to_tile = false;
+    Coord2i move_options[4];
+    int cur_row;
+    int cur_col;
+    int num_moved = 0;
+    char cur_tile;
+    int row_add = 0;
+    int col_add = 0;
+    int num_moves = 0;
+    int walk_length_before_move = 0;
+    Coord2i last_pos_before_move = {};
+    Coord2i tiles_to_ignore_in_new_branch[2];
+    int num_max_steps = num_cols * num_rows;
+    for (int idx_step = 0; idx_step < num_max_steps; idx_step++) {
+        for (int idx_branch = 0; idx_branch < max_num_active_branches; idx_branch++) {
+            if (!id_is_available[idx_branch]) {
+                num_moved = 0;
+                walk_length_before_move = walk_length[idx_branch];
+                last_pos_before_move = last_pos[idx_branch];
+                Coord2i* cur_coord = &last_pos[idx_branch];
+                move_options[0] = { cur_coord->row - 1, cur_coord->col };
+                move_options[1] = { cur_coord->row,     cur_coord->col + 1 };
+                move_options[2] = { cur_coord->row + 1, cur_coord->col };
+                move_options[3] = { cur_coord->row,     cur_coord->col - 1 };
+                for (int idx_move_option = 0; idx_move_option < 4; idx_move_option++) {
+                    num_moves = 1;
+                    cur_row = move_options[idx_move_option].row;
+                    cur_col = move_options[idx_move_option].col;
+                    can_move_to_tile =
+                        cur_row >= 0 &&
+                        cur_row < num_rows &&
+                        cur_col >= 0 &&
+                        cur_col < num_cols &&
+                        tiles[cur_row][cur_col] != '#' &&
+                        is_taken_for_id[cur_row][cur_col] != nullptr &&
+                        (*is_taken_for_id[cur_row][cur_col])[idx_branch] == false;
+                    if (can_move_to_tile) {
+                        cur_tile = tiles[cur_row][cur_col];
+                    }
+                    if (can_move_to_tile && (cur_tile == '<' || cur_tile == '>' || cur_tile == 'v' || cur_tile == '^')) {
+                        num_moves += 1;
+                        row_add = 0;
+                        col_add = 0;
+                        switch (cur_tile) {
+                        case '<': col_add = -1; break;
+                        case '>': col_add = 1; break;
+                        case '^': row_add = -1; break;
+                        case 'v': row_add = 1; break;
+                        }
+                        // NB We assume the slopes doesn't bring us outside the map
+                        can_move_to_tile = can_move_to_tile && (*is_taken_for_id[cur_row + row_add][cur_col + col_add])[idx_branch] == false;
+                        move_options[idx_move_option].row += row_add;
+                        move_options[idx_move_option].col += col_add;
+                    }
+                    if (can_move_to_tile) {
+                        int idx_branch_to_move = 0;
+                        if (num_moved == 0) {
+                            tiles_to_ignore_in_new_branch[0] = { cur_row,cur_col };
+                            tiles_to_ignore_in_new_branch[1] = { move_options[idx_move_option].row,move_options[idx_move_option].col };
+                            idx_branch_to_move = idx_branch;
+                        }
+                        else {
+                            // Set up new branch
+                            int idx_new_branch = -1;
+                            for (int idx_available = 0; idx_available < max_num_active_branches; idx_available++) {
+                                if (id_is_available[idx_available]) {
+                                    idx_new_branch = idx_available;
+                                    break;
+                                }
+                            }
+                            if (idx_new_branch == -1) {
+                                std::cout << "No available IDs" << std::endl;
+                                break;
+                            }
+                            id_is_available[idx_new_branch] = false;
+                            idx_branch_to_move = idx_new_branch;
+                            for (int idx_row = 0; idx_row < num_rows; idx_row++) {
+                                for (int idx_col = 0; idx_col < num_cols; idx_col++) {
+                                    if (is_taken_for_id[idx_row][idx_col] != nullptr && (*is_taken_for_id[idx_row][idx_col])[idx_branch]) {
+                                        (*is_taken_for_id[cur_row][cur_col])[idx_new_branch] = true;
+                                    }
+                                }
+                            }
+                            (*is_taken_for_id[tiles_to_ignore_in_new_branch[0].row][tiles_to_ignore_in_new_branch[0].col])[idx_new_branch] = false;
+                            (*is_taken_for_id[tiles_to_ignore_in_new_branch[1].row][tiles_to_ignore_in_new_branch[1].col])[idx_new_branch] = false;
+                            walk_length[idx_new_branch] = walk_length_before_move;
+                        }
+                        last_pos[idx_branch_to_move] = move_options[idx_move_option];
+                        (*is_taken_for_id[cur_row][cur_col])[idx_branch_to_move] = true;
+                        (*is_taken_for_id[move_options[idx_move_option].row][move_options[idx_move_option].col])[idx_branch_to_move] = true;
+                        walk_length[idx_branch_to_move] += num_moves;
+                        num_moved++;
+                    }
+                }
+                if (num_moved == 0) {
+                    if (last_pos[idx_branch].row == num_rows - 1 && last_pos[idx_branch].col == num_cols - 2) {
+                        // We reached to finish line
+                        std::cout << "Finished with length " << walk_length[idx_branch] << std::endl;
+                    }
+                    id_is_available[idx_branch] = true;
+                    for (int idx_row = 0; idx_row < num_rows; idx_row++) {
+                        for (int idx_col = 0; idx_col < num_cols; idx_col++) {
+                            if (is_taken_for_id[idx_row][idx_col] != nullptr && (*is_taken_for_id[idx_row][idx_col])[idx_branch]) {
+                                (*is_taken_for_id[idx_row][idx_col])[idx_branch] = false;
+                            }
+                        }
+                    }
+                }
+                // TODO: Scanna input, finns det något trix där det inte går att gå ner en backe? Dvs det finns mur nedanför. 
+                // TODO: Hantera målgång. Rutan är på sista raden, näst sista kolumnen
             }
         }
     }
