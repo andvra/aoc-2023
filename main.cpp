@@ -878,9 +878,6 @@ void aoc23() {
     auto lines = read_file("aoc23_real.txt");
     int num_cols = lines[0].size();
     int num_rows = lines.size();
-    int max_num_active_branches = 1000000;
-    int num_path_tiles = 0;
-    int num_slope_titles = 0;
     std::vector<std::vector<char>> tiles(num_rows, std::vector<char>(num_cols, 0));
 
     for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
@@ -889,193 +886,191 @@ void aoc23() {
         }
     }
 
-    // Adjustment for part 2
-    for (auto& r : tiles) {
-        for (auto& c : r) {
-            if (c == '>' || c == '<' || c == '^' || c == 'v') {
-                c = '.';
-            }
-        }
-    }
+    struct Graph_edge;
 
-    for (auto& r : tiles) {
-        for (auto& c : r) {
-            if (c == '.') {
-                num_path_tiles++;
-            }
-            if (c == '>' || c == '<' || c == '^' || c == 'v') {
-                num_slope_titles++;
-            }
-        }
-    }
+    struct Graph_node {
+        int id;
+        int row;
+        int col;
+        std::vector<Graph_edge*> edges;
+    };
 
-    std::vector<std::vector<bool>> is_taken_for_id_base(num_path_tiles + num_slope_titles, std::vector<bool>(max_num_active_branches, false));
-    std::vector<std::vector<std::vector<bool>*>> is_taken_for_id(num_rows, std::vector<std::vector<bool>*>(num_cols, nullptr));
-
-    int is_taken_cnt = 0;
-    for (int idx_row = 0; idx_row < num_rows; idx_row++) {
-        for (int idx_col = 0; idx_col < num_cols; idx_col++) {
+    std::vector<Graph_node> graph_nodes = {};
+    int idx_graph_node = 0;
+    // Manually add start node
+    graph_nodes.push_back({ idx_graph_node++, 0,1 });
+    // Look for decision points
+    for (int idx_row = 1; idx_row < num_rows - 1;  idx_row++) {
+        for (int idx_col = 1; idx_col < num_cols - 1; idx_col++) {
             auto c = tiles[idx_row][idx_col];
-            if (c == '>' || c == '<' || c == '^' || c == 'v' || c == '.' ) {
-                is_taken_for_id[idx_row][idx_col] = &is_taken_for_id_base[is_taken_cnt++];
+            char neighborhood[4] = {
+                tiles[idx_row][idx_col + 1],
+                tiles[idx_row][idx_col - 1],
+                tiles[idx_row + 1][idx_col],
+                tiles[idx_row - 1][idx_col]
+            };
+            if (c == '.') {
+                int num_free = 0;
+                for (int i = 0; i < 4; i++) {
+                    auto cn = neighborhood[i];
+                    if (cn == '.' || cn == '>' || cn == '<' || cn == '^' || cn == 'v') {
+                        num_free++;
+                    }
+                }
+                if (num_free > 2) {
+                    graph_nodes.push_back({ idx_graph_node++,idx_row,idx_col });
+                }
             }
         }
     }
+    // Manually add end node
+    graph_nodes.push_back({ idx_graph_node++, num_rows - 1,num_cols - 2 });
 
-    //// Look for dead ends - none found!
-    //for (int idx_row = 1; idx_row < num_rows - 1; idx_row++) {
-    //    for (int idx_col = 1; idx_col < num_cols - 1; idx_col++) {
-    //        auto c = tiles[idx_row][idx_col];
-    //        char neighborhood[4] = {
-    //            tiles[idx_row][idx_col + 1],
-    //            tiles[idx_row][idx_col - 1],
-    //            tiles[idx_row + 1][idx_col],
-    //            tiles[idx_row - 1][idx_col]
-    //        };
-    //        if (c == '.') {
-    //            int num_free = 0;
-    //            for (int i = 0; i < 4; i++) {
-    //                if (neighborhood[i] == '.') {
-    //                    num_free++;
-    //                }
-    //            }
-    //            if (num_free < 2) {
-    //                std::cout << "Found dead-end" << std::endl;
-    //            }
-    //        }
-    //    }
-    //}
+    struct Graph_edge {
+        Graph_node* src;
+        Graph_node* dst;
+        int dist;
+    };
 
     struct Coord2i {
         int row;
         int col;
     };
-    std::vector<bool> id_is_available(max_num_active_branches, true);
-    std::vector<Coord2i> last_pos(max_num_active_branches);
-    std::vector<int> walk_length(max_num_active_branches, 0);
-    id_is_available[0] = false;
-    (*is_taken_for_id[0][1])[0] = true;
-    last_pos[0] = { 0,1 };
 
-    bool can_move_to_tile = false;
-    Coord2i move_options[4];
-    int cur_row;
-    int cur_col;
-    int num_moved = 0;
-    char cur_tile;
-    int row_add = 0;
-    int col_add = 0;
-    int num_moves = 0;
-    int walk_length_before_move = 0;
-    Coord2i last_pos_before_move = {};
-    Coord2i tiles_to_ignore_in_new_branch[2];
-    int num_max_steps = num_cols * num_rows;
-    int max_steps_for_a_path = 0;
-    for (int idx_step = 0; idx_step < num_max_steps; idx_step++) {
-        for (int idx_branch = 0; idx_branch < max_num_active_branches; idx_branch++) {
-            if (!id_is_available[idx_branch]) {
-                num_moved = 0;
-                walk_length_before_move = walk_length[idx_branch];
-                last_pos_before_move = last_pos[idx_branch];
-                Coord2i* cur_coord = &last_pos[idx_branch];
-                move_options[0] = { cur_coord->row - 1, cur_coord->col };
-                move_options[1] = { cur_coord->row,     cur_coord->col + 1 };
-                move_options[2] = { cur_coord->row + 1, cur_coord->col };
-                move_options[3] = { cur_coord->row,     cur_coord->col - 1 };
-                for (int idx_move_option = 0; idx_move_option < 4; idx_move_option++) {
-                    num_moves = 1;
-                    cur_row = move_options[idx_move_option].row;
-                    cur_col = move_options[idx_move_option].col;
-                    can_move_to_tile =
-                        cur_row >= 0 &&
-                        cur_row < num_rows &&
-                        cur_col >= 0 &&
-                        cur_col < num_cols &&
-                        tiles[cur_row][cur_col] != '#' &&
-                        (tiles[cur_row][cur_col] != '.' ||
-                            (is_taken_for_id[cur_row][cur_col] != nullptr &&
-                            (*is_taken_for_id[cur_row][cur_col])[idx_branch] == false));
-                    if (can_move_to_tile) {
-                        cur_tile = tiles[cur_row][cur_col];
+    std::vector<Graph_edge> graph_edges(1000);
+    int num_graph_edges = 0;
+
+    for (int idx_node = 0; idx_node < graph_nodes.size(); idx_node++) {
+        Graph_node* src = &graph_nodes[idx_node];
+        bool done_with_node = false;
+        std::vector<Coord2i> heads = { };
+        std::vector<Coord2i> cur_last_positions = {};
+        std::vector<int> edge_lengths = {};
+        if (src->row - 1 >= 0 && tiles[src->row - 1][src->col] != 'v' && tiles[src->row - 1][src->col] != '#') {
+            heads.push_back({ src->row - 1,src->col });
+            cur_last_positions.push_back({ src->row,src->col });
+            edge_lengths.push_back(1);
+        }
+        if (src->row + 1 < num_rows && tiles[src->row + 1][src->col] != '^' && tiles[src->row + 1][src->col] != '#') {
+            heads.push_back({ src->row + 1,src->col });
+            cur_last_positions.push_back({ src->row,src->col });
+            edge_lengths.push_back(1);
+        }
+        if (src->col - 1 >= 0 && tiles[src->row][src->col - 1] != '>' && tiles[src->row][src->col - 1] != '#') {
+            heads.push_back({ src->row, src->col - 1 });
+            cur_last_positions.push_back({ src->row,src->col });
+            edge_lengths.push_back(1);
+        }
+        if (src->col + 1 >= 0 && tiles[src->row][src->col + 1] != '<' && tiles[src->row][src->col + 1] != '#') {
+            heads.push_back({ src->row, src->col + 1 });
+            cur_last_positions.push_back({ src->row,src->col });
+            edge_lengths.push_back(1);
+        }
+        for (int idx_head = 0; idx_head < heads.size(); idx_head++) {
+            bool head_done = false;
+            auto cur_head = &heads[idx_head];
+            auto cur_last_pos = &cur_last_positions[idx_head];
+            auto cur_length = &edge_lengths[idx_head];
+            while (!head_done) {
+                Coord2i neighborhood_coord[4] = {
+                    {cur_head->row,      cur_head->col + 1},
+                    {cur_head->row,      cur_head->col - 1},
+                    {cur_head->row + 1,  cur_head->col},
+                    {cur_head->row - 1,  cur_head->col}
+                };
+                Coord2i new_head = {};
+                for (int idx_n = 0; idx_n < 4; idx_n++) {
+                    auto row_check = neighborhood_coord[idx_n].row;
+                    auto col_check = neighborhood_coord[idx_n].col;
+                    if (row_check < 0 || row_check >= num_rows || col_check < 0 || col_check >= num_cols) {
+                        continue;
                     }
-                    if (can_move_to_tile && (cur_tile == '<' || cur_tile == '>' || cur_tile == 'v' || cur_tile == '^')) {
-                        num_moves += 1;
-                        row_add = 0;
-                        col_add = 0;
-                        switch (cur_tile) {
-                        case '<': col_add = -1; break;
-                        case '>': col_add = 1; break;
-                        case '^': row_add = -1; break;
-                        case 'v': row_add = 1; break;
-                        }
-                        // NB We assume the slopes doesn't bring us outside the map
-                        can_move_to_tile = can_move_to_tile && (*is_taken_for_id[cur_row + row_add][cur_col + col_add])[idx_branch] == false;
-                        move_options[idx_move_option].row += row_add;
-                        move_options[idx_move_option].col += col_add;
-                    }
-                    if (can_move_to_tile) {
-                        int idx_branch_to_move = 0;
-                        if (num_moved == 0) {
-                            tiles_to_ignore_in_new_branch[0] = { cur_row,cur_col };
-                            tiles_to_ignore_in_new_branch[1] = { move_options[idx_move_option].row,move_options[idx_move_option].col };
-                            idx_branch_to_move = idx_branch;
-                        }
-                        else {
-                            // Set up new branch
-                            int idx_new_branch = -1;
-                            for (int idx_available = 0; idx_available < max_num_active_branches; idx_available++) {
-                                if (id_is_available[idx_available]) {
-                                    idx_new_branch = idx_available;
-                                    break;
-                                }
-                            }
-                            if (idx_new_branch == -1) {
-                                std::cout << "No available IDs" << std::endl;
-                                break;
-                            }
-                            id_is_available[idx_new_branch] = false;
-                            idx_branch_to_move = idx_new_branch;
-                            for (int idx_row = 0; idx_row < num_rows; idx_row++) {
-                                for (int idx_col = 0; idx_col < num_cols; idx_col++) {
-                                    if (is_taken_for_id[idx_row][idx_col] != nullptr && (*is_taken_for_id[idx_row][idx_col])[idx_branch]) {
-                                        (*is_taken_for_id[cur_row][cur_col])[idx_new_branch] = true;
-                                    }
-                                }
-                            }
-                            (*is_taken_for_id[tiles_to_ignore_in_new_branch[0].row][tiles_to_ignore_in_new_branch[0].col])[idx_new_branch] = false;
-                            (*is_taken_for_id[tiles_to_ignore_in_new_branch[1].row][tiles_to_ignore_in_new_branch[1].col])[idx_new_branch] = false;
-                            walk_length[idx_new_branch] = walk_length_before_move;
-                        }
-                        last_pos[idx_branch_to_move] = move_options[idx_move_option];
-                        (*is_taken_for_id[cur_row][cur_col])[idx_branch_to_move] = true;
-                        (*is_taken_for_id[move_options[idx_move_option].row][move_options[idx_move_option].col])[idx_branch_to_move] = true;
-                        walk_length[idx_branch_to_move] += num_moves;
-                        num_moved++;
+                    if (tiles[row_check][col_check] != '#' && ((row_check != cur_last_pos->row) || (col_check != cur_last_pos->col))) {
+                        // We assume there is no opposite-pointing slope on the path between two adjacent nodes (= crossroads)
+                        new_head = { row_check,col_check };
+                        break;
                     }
                 }
-                if (num_moved == 0) {
-                    if (last_pos[idx_branch].row == num_rows - 1 && last_pos[idx_branch].col == num_cols - 2) {
-                        if (max_steps_for_a_path < walk_length[idx_branch]) {
-                            max_steps_for_a_path = walk_length[idx_branch];
-                        }
-                        // We reached to finish line
-                        std::cout << "Finished with length " << walk_length[idx_branch] << std::endl;
+                cur_last_pos->row = cur_head->row;
+                cur_last_pos->col = cur_head->col;
+                cur_head->row = new_head.row;
+                cur_head->col = new_head.col;
+                (*cur_length)++;
+                for (int idx_graph_node = 0; idx_graph_node < graph_nodes.size(); idx_graph_node++) {
+                    if (idx_graph_node == src->id) {
+                        continue;
                     }
-                    id_is_available[idx_branch] = true;
-                    for (int idx_row = 0; idx_row < num_rows; idx_row++) {
-                        for (int idx_col = 0; idx_col < num_cols; idx_col++) {
-                            if (is_taken_for_id[idx_row][idx_col] != nullptr && (*is_taken_for_id[idx_row][idx_col])[idx_branch]) {
-                                (*is_taken_for_id[idx_row][idx_col])[idx_branch] = false;
-                            }
-                        }
+                    if (new_head.row == graph_nodes[idx_graph_node].row &&
+                        new_head.col == graph_nodes[idx_graph_node].col) {
+                        graph_edges[num_graph_edges++] = { src,&graph_nodes[idx_graph_node] ,*cur_length };
+                        head_done = true;
                     }
                 }
-                // TODO: Scanna input, finns det något trix där det inte går att gå ner en backe? Dvs det finns mur nedanför. 
             }
         }
     }
 
-    std::cout << "AOC23-1: " << max_steps_for_a_path << std::endl;
+    for (int idx_edge = 0; idx_edge < num_graph_edges; idx_edge++) {
+        graph_edges[idx_edge].src->edges.push_back(&graph_edges[idx_edge]);
+    }
+
+    struct Search_node {
+        Graph_node* node;
+        Search_node* parent;
+        int tot_walk_length;
+    };
+
+    for (int idx_challenge_parts = 0; idx_challenge_parts < 2; idx_challenge_parts++) {
+        if (idx_challenge_parts == 1) {
+            // Make graph bidirectional
+            for (auto& n : graph_nodes) {
+                for (auto& src_edge : n.edges) {
+                    bool has_edge = false;
+                    // The edge to match should mirror the source/destination part
+                    Graph_edge edge_to_match = { src_edge->dst,src_edge->src,src_edge->dist };
+                    for (auto& dst_edge : src_edge->dst->edges) {
+                        if (dst_edge->src == edge_to_match.src && dst_edge->dst == edge_to_match.dst) {
+                            has_edge = true;
+                        }
+                    }
+                    if (has_edge == false) {
+                        graph_edges[num_graph_edges++] = edge_to_match;
+                        src_edge->dst->edges.push_back(&graph_edges[num_graph_edges - 1]);
+                    }
+                }
+            }
+        }
+        std::vector<Search_node> search_nodes(100000000);
+        search_nodes[0] = { &graph_nodes[0], nullptr, 0 };
+        int num_nodes = 1;
+        int max_walk_length = 0;
+
+        for (int idx_node = 0; idx_node < num_nodes; idx_node++) {
+            if (search_nodes[idx_node].node == &graph_nodes.back()) {
+                if (search_nodes[idx_node].tot_walk_length > max_walk_length) {
+                    max_walk_length = search_nodes[idx_node].tot_walk_length;
+                }
+                continue;
+            }
+            for (int idx_edge = 0; idx_edge < search_nodes[idx_node].node->edges.size(); idx_edge++) {
+                bool do_use = true;
+                Graph_node* current_node = search_nodes[idx_node].node->edges[idx_edge]->dst;
+                auto search_parent = &search_nodes[idx_node];
+                while (search_parent != nullptr) {
+                    if (search_parent->node == current_node) {
+                        do_use = false;
+                    }
+                    search_parent = search_parent->parent;
+                }
+                if (do_use) {
+                    Search_node* parent = &search_nodes[idx_node];
+                    int new_tot_walk_length = search_nodes[idx_node].tot_walk_length + search_nodes[idx_node].node->edges[idx_edge]->dist;
+                    search_nodes[num_nodes++] = { current_node, parent,  new_tot_walk_length };
+                }
+            }
+        }
+        std::cout << "AOC23-" << idx_challenge_parts + 1 << ": " << max_walk_length << std::endl;
+    }
 }
 
 int main() {
