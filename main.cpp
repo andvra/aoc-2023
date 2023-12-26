@@ -33,7 +33,7 @@ std::vector<std::string> split_string(std::string s, std::string delimiter) {
             break;
         }
         ret.push_back(s.substr(offset, idx - offset));
-        offset = idx + 1;
+        offset = idx + 1 + delimiter.size();
     }
 
     return ret;
@@ -1073,13 +1073,45 @@ void aoc23() {
     }
 }
 
+void aoc24() {
+    auto lines = read_file("aoc24_test.txt");
+
+    struct Particle3d {
+        double x;
+        double y;
+        double z;
+        double x_d;
+        double y_d;
+        double z_d;
+    };
+    std::vector<Particle3d> hails = {};
+
+    for (auto& line : lines) {
+        auto the_split = split_string(line, " @ ");
+        auto parts_pos = split_string(the_split[0], ", ");
+        auto parts_dir = split_string(the_split[1], ", ");
+        hails.push_back({
+            std::atof(parts_pos[0].c_str()),
+            std::atof(parts_pos[1].c_str()),
+            std::atof(parts_pos[2].c_str()),
+            std::atof(parts_dir[0].c_str()),
+            std::atof(parts_dir[1].c_str()),
+            std::atof(parts_dir[2].c_str())
+        });
+    }
+
+    // Skapa linjära ekvationssystem av alla kombinationer. Lös varje ekvationssystem för sig för att få fram lösningen.
+    // Kolla först om raderna i ekvationssystemet är oberoende. Om de är det, lös med x = A_inv * b
+}
+
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
     //aoc20();
     //aoc21();
     //aoc22();
-    aoc23();
+    //aoc23();
+    aoc24();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
