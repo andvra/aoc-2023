@@ -33,7 +33,7 @@ std::vector<std::string> split_string(std::string s, std::string delimiter) {
             break;
         }
         ret.push_back(s.substr(offset, idx - offset));
-        offset = idx + 1 + delimiter.size();
+        offset = idx + delimiter.size();
     }
 
     return ret;
@@ -1074,7 +1074,9 @@ void aoc23() {
 }
 
 void aoc24() {
-    auto lines = read_file("aoc24_test.txt");
+    bool use_test = false;
+    std::string fn = use_test ? "aoc24_test.txt" : "aoc24_real.txt";
+    auto lines = read_file(fn);
 
     struct Particle3d {
         double x;
@@ -1097,11 +1099,79 @@ void aoc24() {
             std::atof(parts_dir[0].c_str()),
             std::atof(parts_dir[1].c_str()),
             std::atof(parts_dir[2].c_str())
-        });
+            });
     }
 
-    // Skapa linjära ekvationssystem av alla kombinationer. Lös varje ekvationssystem för sig för att få fram lösningen.
-    // Kolla först om raderna i ekvationssystemet är oberoende. Om de är det, lös med x = A_inv * b
+    int intersections_within = 0;
+    double boundary_min = use_test ? 7 : 200'000'000'000'000;
+    double boundary_max = use_test ? 27 : 400'000'000'000'000;
+    for (int idx_hail_src = 0; idx_hail_src < hails.size(); idx_hail_src++) {
+        for (int idx_hail_dst = idx_hail_src + 1; idx_hail_dst < hails.size(); idx_hail_dst++) {
+            double x1 = hails[idx_hail_src].x;
+            double y1 = hails[idx_hail_src].y;
+            double x3 = hails[idx_hail_dst].x;
+            double y3 = hails[idx_hail_dst].y;
+
+            // Hails might start outside the test area but collisions must occur inside
+            double x[2] = { hails[idx_hail_src].x, hails[idx_hail_dst].x };
+            double y[2] = { hails[idx_hail_src].y, hails[idx_hail_dst].y };
+            double x_d[2] = { hails[idx_hail_src].x_d, hails[idx_hail_dst].x_d };
+            double y_d[2] = { hails[idx_hail_src].y_d, hails[idx_hail_dst].y_d };
+            double num_steps[2] = {};
+            for (int i = 0; i < 2; i++) {
+                if (x_d[i] < 0 && x[i] > boundary_min) {
+                    num_steps[i] = (boundary_min - x[i]) / x_d[i];
+                }
+                if (x_d[i] > 0 && x[i] < boundary_max) {
+                    auto cur_steps = (boundary_max - x[i]) / x_d[i];
+                    if (num_steps[i] == 0 || cur_steps < num_steps[i]) {
+                        num_steps[i] = cur_steps;
+                    }
+                }
+                if (y_d[i] < 0 && y[i] > boundary_min) {
+                    auto cur_steps = (boundary_min - y[i]) / y_d[i];
+                    if (num_steps[i] == 0 || cur_steps < num_steps[i]) {
+                        num_steps[i] = cur_steps;
+                    }
+                }
+                if (y_d[i] > 0 && y[i] < boundary_max) {
+                    auto cur_steps = (boundary_max - y[i]) / y_d[i];
+                    if (num_steps[i] == 0 || cur_steps < num_steps[i]) {
+                        num_steps[i] = cur_steps;
+                    }
+                }
+                if (num_steps == 0) {
+                    std::cout << "ERROR num_steps=0" << std::endl;
+                    continue;
+                }
+            }
+
+            double x2 = x1 + num_steps[0] * x_d[0];
+            double y2 = y1 + num_steps[0] * y_d[0];
+            double x4 = x3 + num_steps[1] * x_d[1];
+            double y4 = y3 + num_steps[1] * y_d[1];
+
+            double denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (std::abs(denominator) < 0.000001) {
+                std::cout << "denom" << std::endl;
+                continue;
+            }
+
+            auto nominator_1 = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4);
+            double t = (nominator_1 / denominator);
+            auto nominator_2 = (x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2);
+            double u = nominator_2 / denominator;
+            if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+                double check_x = x1 + t * (x2 - x1);
+                double check_y = y1 + t * (y2 - y1);
+                if (check_x >= boundary_min && check_x <= boundary_max && check_y >= boundary_min && check_y <= boundary_max) {
+                    intersections_within++;
+                }
+            }
+        }
+    }
+
+    std::cout << "AOC24-1: " << intersections_within << std::endl;
 }
 
 int main() {
