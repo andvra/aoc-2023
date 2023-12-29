@@ -39,6 +39,64 @@ std::vector<std::string> split_string(std::string s, std::string delimiter) {
     return ret;
 }
 
+// The last element on each row is the scalar to compare with
+std::vector<double> linear_solver(std::vector<std::vector<double>> input) {
+    bool done = false;
+    int variables_complete = 0;
+    int steps = 0;
+
+    while (!done) {
+        // 1. Swap rows if needed
+        if (input[variables_complete][variables_complete] == 0) {
+            bool did_switch = false;
+            for (int i = variables_complete + 1; i < input.size(); i++) {
+                if (input[i][variables_complete] != 0) {
+                    auto tmp = input[i];
+                    input[i] = input[variables_complete];
+                    input[variables_complete] = tmp;
+                    did_switch = true;
+                    break;
+                }
+            }
+            if (!did_switch) {
+                std::cout << "Couldn't switch. Aborting" << std::endl;
+                return {};
+            }
+        }
+        // 2. Scale row
+        double factor = input[variables_complete][variables_complete];
+        if (factor != 1) {
+            for (int i = variables_complete; i < input[variables_complete].size(); i++) {
+                input[variables_complete][i] /= factor;
+            }
+        }
+        // 3. Multiply onto other rows
+        for (int idx_row = 0; idx_row < input.size(); idx_row++) {
+            if (idx_row == variables_complete) {
+                continue;
+            }
+            double factor = input[idx_row][variables_complete];
+            if (factor != 0) {
+                for (int i = variables_complete; i < input[variables_complete].size(); i++) {
+                    input[idx_row][i] -= factor * input[variables_complete][i];
+                }
+            }
+        }
+        steps++;
+        if (++variables_complete == input.size()) {
+            done = true;
+        }
+    }
+
+    std::vector<double> ret(input.size(), 0);
+
+    for (int i = 0; i < input.size(); i++) {
+        ret[i] = input[i][input[i].size() - 1];
+    }
+
+    return ret;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -1071,64 +1129,6 @@ void aoc23() {
         }
         std::cout << "AOC23-" << idx_challenge_parts + 1 << ": " << max_walk_length << std::endl;
     }
-}
-
-// The last element on each row is the scalar to compare with
-std::vector<double> linear_solver(std::vector<std::vector<double>> input) {
-    bool done = false;
-    int variables_complete = 0;
-    int steps = 0;
-
-    while (!done) {
-        // 1. Swap rows if needed
-        if (input[variables_complete][variables_complete] == 0) {
-            bool did_switch = false;
-            for (int i = variables_complete+1; i < input.size(); i++) {
-                if (input[i][variables_complete] != 0) {
-                    auto tmp = input[i];
-                    input[i] = input[variables_complete];
-                    input[variables_complete] = tmp;
-                    did_switch = true;
-                    break;
-                }
-            }
-            if (!did_switch) {
-                std::cout << "Couldn't switch. Aborting" << std::endl;
-                return {};
-            }
-        }
-        // 2. Scale row
-        double factor = input[variables_complete][variables_complete];
-        if (factor != 1) {
-            for (int i = variables_complete; i < input[variables_complete].size(); i++) {
-                input[variables_complete][i] /= factor;
-            }
-        }
-        // 3. Multiply onto other rows
-        for (int idx_row = 0; idx_row < input.size(); idx_row++) {
-            if (idx_row == variables_complete) {
-                continue;
-            }
-            double factor = input[idx_row][variables_complete];
-            if (factor != 0) {
-                for (int i = variables_complete; i < input[variables_complete].size(); i++) {
-                    input[idx_row][i] -= factor * input[variables_complete][i];
-                }
-            }
-        }
-        steps++;
-        if (++variables_complete == input.size()) {
-            done = true;
-        }
-    }
-    
-    std::vector<double> ret(input.size(), 0);
-
-    for (int i = 0; i < input.size(); i++) {
-        ret[i] = input[i][input[i].size() - 1];
-    }
-
-    return ret;
 }
 
 void aoc24() {
