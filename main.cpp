@@ -259,6 +259,86 @@ void aoc01() {
     }
 }
 
+void aoc02() {
+    auto lines = read_file("aoc02_real.txt");
+
+    std::vector<int> max_per_color = { 12,13,14 };
+
+    std::map<std::string, int> color_type{
+        {"red",     0},
+        {"green",   1},
+        {"blue",    2}
+    };
+
+    struct Cube {
+        int type;
+        int count;
+    };
+    struct Round {
+        std::vector<Cube> cubes;
+    };
+    struct Game {
+        int id;
+        std::vector<Round> rounds;
+    };
+
+    int ret1 = 0;
+    int ret2 = 0;
+    std::vector<Game> games = {};
+
+    // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+    for (auto& line : lines) {
+        auto game = split_string(line, ": ");
+        auto game_split = split_string(game[0], " ");
+        auto game_number_string = game_split[1];
+        auto sets = split_string(game[1], "; ");
+        Game cur_game = { std::atoi(game_number_string.c_str()), {} };
+        for (auto set : sets) {
+            auto cubes = split_string(set, ", ");
+            Round round = {};
+            for (auto cube : cubes) {
+                auto el = split_string(cube, " ");
+                auto num_string = el[0];
+                auto color_string = el[1];
+                if (color_type.count(color_string) > 0) {
+                    round.cubes.push_back({ color_type[color_string], std::atoi(num_string.c_str()) });
+                }
+                else {
+                    std::cout << "Unknown color " << el[1] << std::endl;
+                }
+            }
+            cur_game.rounds.push_back(round);
+        }
+        games.push_back(cur_game);
+    }
+
+    for (auto& game : games) {
+        int max_counts[3] = {};
+        for (auto& round : game.rounds) {
+            for (auto& cube : round.cubes) {
+                if (cube.count > max_counts[cube.type]) {
+                    max_counts[cube.type] = cube.count;
+                }
+            }
+        }
+        bool valid_game = true;
+        for (int i = 0; i < 3; i++) {
+            if (max_counts[i] > max_per_color[i]) {
+                valid_game = false;
+                break;
+            }
+        }
+        if (valid_game) {
+            ret1 += game.id;
+        }
+        ret2 += max_counts[0] * max_counts[1] * max_counts[2];
+    }
+
+    std::cout << "AOC02-1: " << ret1 << std::endl;
+    std::cout << "AOC02-2: " << ret2 << std::endl;
+
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -1631,7 +1711,8 @@ void aoc25() {
 
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
-    aoc01();
+    //aoc01();
+    aoc02();
 	//aoc19();
     //aoc20();
     //aoc21();
