@@ -5,6 +5,7 @@
 #include <fstream>
 #include <set>
 #include <chrono>
+#include <algorithm>
 
 std::vector<std::string> read_file(std::string fn) {
     std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
@@ -92,6 +93,101 @@ std::vector<double> linear_solver(std::vector<std::vector<double>> input) {
 
     for (int i = 0; i < input.size(); i++) {
         ret[i] = input[i][input[i].size() - 1];
+    }
+
+    return ret;
+}
+
+struct Graph_node {
+    int id;
+    std::string name;
+    std::vector<Graph_node*> neighbors;
+};
+
+struct Node_head {
+    Graph_node* node;
+    Node_head* last_head;
+};
+
+std::vector<Graph_node*> shortest_path(Graph_node* src, Graph_node* dst, int num_graph_nodes) {
+    std::vector<int> dist(num_graph_nodes, 0);
+    int cur_distance = 1;
+    std::vector<Graph_node*> to_search(num_graph_nodes * num_graph_nodes); // NB could be optimized when needed
+    int num_search_nodes = 0;
+    int idx_start = 0;
+    to_search[num_search_nodes++] = src;
+    int idx_end_exclusive = num_search_nodes;
+    std::vector<Graph_node*> ret = {};
+    bool done = false;
+
+    while (!done) {
+        for (int i = idx_start; i < idx_end_exclusive; i++) {
+            if (to_search[i] == dst) {
+                Graph_node* el = to_search[i];
+                while (el != src) {
+                    ret.push_back(el);
+                    for (auto n : el->neighbors) {
+                        auto dist1 = dist[n->id];
+                        auto dist2 = dist[el->id];
+                        if ((n == src || dist1 != 0) && dist1 < dist2) {
+                            el = n;
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            for (auto& n : to_search[i]->neighbors) {
+                if (n == src) {
+                    continue;
+                }
+                if (dist[n->id] == 0 || dist[n->id] > cur_distance) {
+                    dist[n->id] = cur_distance;
+                    to_search[num_search_nodes++] = n;
+                }
+            }
+        }
+        idx_start = idx_end_exclusive;
+        idx_end_exclusive = num_search_nodes;
+        cur_distance++;
+        if (idx_end_exclusive == idx_start) {
+            done = true;
+        }
+    }
+
+    return ret;
+}
+
+std::vector<Graph_node*> connected_nodes(std::vector<Graph_node>& all_nodes, Graph_node* src, int num_graph_nodes) {
+    std::vector<bool> visited(num_graph_nodes, false);
+    std::vector<Graph_node*> to_search(num_graph_nodes * num_graph_nodes); // NB could be optimized when needed
+    int num_search_nodes = 0;
+    int idx_start = 0;
+    to_search[num_search_nodes++] = src;
+    int idx_end_exclusive = num_search_nodes;
+    bool done = false;
+
+    while (!done) {
+        for (int i = idx_start; i < idx_end_exclusive; i++) {
+            visited[to_search[i]->id] = true;
+            for (auto& n : to_search[i]->neighbors) {
+                if (!visited[n->id]) {
+                    to_search[num_search_nodes++] = n;
+                }
+            }
+        }
+        idx_start = idx_end_exclusive;
+        idx_end_exclusive = num_search_nodes;
+        if (idx_end_exclusive == idx_start) {
+            done = true;
+        }
+    }
+
+    std::vector<Graph_node*> ret = {};
+    for (int i = 0; i < visited.size(); i++) {
+        if (visited[i]) {
+            ret.push_back(&all_nodes[i]);
+        }
     }
 
     return ret;
@@ -1296,15 +1392,9 @@ void aoc24() {
 }
 
 void aoc25() {
-    bool use_test = true;
+    bool use_test = false;
     std::string fn = use_test ? "aoc25_test.txt" : "aoc25_real.txt";
     auto lines = read_file(fn);
-
-    struct Graph_node {
-        int id;
-        std::string name;
-        std::vector<Graph_node*> neighbors;
-    };
 
     std::vector<Graph_node> graph_nodes = {};
     int cnt_nodes = 0;
@@ -1361,67 +1451,116 @@ void aoc25() {
         }
     }
 
-    struct Node_head {
-        Graph_node* node;
-        Node_head* last_head;
-    };
+    std::vector<int> src_indices = {};
+    std::vector<int> dst_indices = {};
 
-    for (auto& gn : graph_nodes) {
-        std::cout << "Testing " << gn.name << std::endl;
-        for (auto excluded_neighbor : gn.neighbors) {
-            std::cout << "  Excluding " << excluded_neighbor->name << std::endl;
-            bool can_be_reached = false;
-            for (auto n : gn.neighbors) {
-                if (n == excluded_neighbor) {
-                    continue;
+    int num_indices = 1000;
+
+    for (int i = 0; i < num_indices; i++) {
+        src_indices.push_back(std::rand() % graph_nodes.size());
+        dst_indices.push_back(std::rand() % graph_nodes.size());
+    }
+    /*
+    1 000 iter:
+      nsk -> rsg: 237
+      zcp -> zjm: 157
+      jks -> rfg: 111
+
+    10 000 iter:
+      nsk -> rsg: 2299
+      zcp -> zjm: 1567
+      jks -> rfg: 1069
+    */
+
+    std::vector<int> cnt_passage(graph_nodes.size() * graph_nodes.size(), 0);
+
+    for (int i = 0; i < src_indices.size(); i++) {
+        int idx_src = src_indices[i];
+        int idx_dst = dst_indices[i];
+        auto shortest = shortest_path(&graph_nodes[idx_src], &graph_nodes[idx_dst], graph_nodes.size());
+        for (int idx_node = 0; idx_node < (int)shortest.size() - 1; idx_node++) {
+            int id1 = shortest[idx_node]->id;
+            int id2 = shortest[idx_node + 1]->id;
+            int idx1 = id1 + id2 * graph_nodes.size();
+            int idx2 = id2 + id1 * graph_nodes.size();
+            cnt_passage[idx1]++;
+            cnt_passage[idx2]++;
+        }
+    }
+
+    int num_largest = 5;
+    std::vector<int> largest_val(num_largest);
+    std::vector<Graph_node*> largest_src(num_largest);
+    std::vector<Graph_node*> largest_dst(num_largest);
+    for (int row = 0; row < graph_nodes.size(); row++) {
+        for (int col = row + 1; col < graph_nodes.size(); col++) {
+            int val = cnt_passage[row * graph_nodes.size() + col];
+            if (val == 0) {
+                continue;
+            }
+            int idx_smallest = 0;
+            for (int i = 1; i < num_largest; i++) {
+                if (largest_val[i] < largest_val[idx_smallest]) {
+                    idx_smallest = i;
                 }
-                int max_branches = 1000;
-                int num_branches = 0;
-                std::vector<Node_head> node_heads(max_branches);
-                Node_head root_head = { &gn,nullptr };
-                node_heads[num_branches++] = { n, &root_head };
-                int idx_start = 0;
-                int idx_end_exclusive = num_branches;
-                int idx_valid = -1;
-                for (int i = idx_start; i < idx_end_exclusive; i++) {
-                    if (node_heads[i].node->id == excluded_neighbor->id) {
-                        idx_valid = i;
-                        can_be_reached = true;
-                        break;
-                    }
-                    for (auto x : node_heads[i].node->neighbors) {
-                        if (x == &gn) {
-                            continue;
-                        }
-                        bool looping = false;
-                        Node_head* cur_node_head = &node_heads[i];
-                        while (cur_node_head != nullptr) {
-                            if (x == cur_node_head->node) {
-                                looping = true;
-                                break;
-                            }
-                            cur_node_head = cur_node_head->last_head;
-                        }
-                        if (!looping) {
-                            node_heads[num_branches++] = { x, &node_heads[i] };
-                        }
-                    }
-                    idx_start = idx_end_exclusive;
-                    idx_end_exclusive = num_branches;
-                }
-                if (can_be_reached) {
-                    std::cout << "    " << excluded_neighbor->name << " can be reached\n      ";
-                    Node_head* cur_node_head = &node_heads[idx_valid];
-                    while (cur_node_head != nullptr) {
-                        std::cout << cur_node_head->node->name << " ";
-                        cur_node_head = cur_node_head->last_head;
-                    }
-                    std::cout << std::endl;
-                    break;
-                }
+            }
+            if (largest_val[idx_smallest] < val) {
+                largest_val[idx_smallest] = val;
+                largest_src[idx_smallest] = &graph_nodes[col];
+                largest_dst[idx_smallest] = &graph_nodes[row];
             }
         }
     }
+
+    auto largest_val_sorted = largest_val;
+    std::set<int> s(largest_val_sorted.begin(), largest_val_sorted.end());
+    largest_val_sorted.assign(s.begin(), s.end());
+    std::sort(largest_val_sorted.begin(), largest_val_sorted.end());
+
+    std::vector<int> val_max;
+    std::vector<Graph_node*> src_max;
+    std::vector<Graph_node*> dst_max;
+
+    for (int i = largest_val_sorted.size() - 1; i >= 0; i--) {
+        int val = largest_val_sorted[i];
+        for (int j = 0; j < largest_val.size(); j++) {
+            if (largest_val[j] == val) {
+                val_max.push_back(largest_val[j]);
+                src_max.push_back(largest_src[j]);
+                dst_max.push_back(largest_dst[j]);
+            }
+        }
+        if (val_max.size() >= 3) {
+            break;
+        }
+    }
+
+    for (int i = 0; i < src_max.size(); i++) {
+        auto to_remove = std::find(src_max[i]->neighbors.begin(), src_max[i]->neighbors.end(), dst_max[i]);
+        src_max[i]->neighbors.erase(to_remove);
+
+        to_remove = std::find(dst_max[i]->neighbors.begin(), dst_max[i]->neighbors.end(), src_max[i]);
+        dst_max[i]->neighbors.erase(to_remove);
+    }
+    
+    auto con1 = connected_nodes(graph_nodes, &graph_nodes[0], graph_nodes.size());
+    std::vector<Graph_node*> con2 = {};
+    for (auto& gn : graph_nodes) {
+        bool found = false;
+        for (auto n : con1) {
+            if (gn.id == n->id) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            con2.push_back(&gn);
+        }
+    }
+
+    int ans_1 = con1.size() * con2.size();
+
+    std::cout << "AOC25-1: " << ans_1 << std::endl;
 }
 
 int main() {
