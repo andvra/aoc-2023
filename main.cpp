@@ -1073,26 +1073,90 @@ void aoc23() {
     }
 }
 
+// The last element on each row is the scalar to compare with
+std::vector<double> linear_solver(std::vector<std::vector<double>> input) {
+    bool done = false;
+    int variables_complete = 0;
+    int steps = 0;
+
+    while (!done) {
+        // 1. Swap rows if needed
+        if (input[variables_complete][variables_complete] == 0) {
+            bool did_switch = false;
+            for (int i = variables_complete+1; i < input.size(); i++) {
+                if (input[i][variables_complete] != 0) {
+                    auto tmp = input[i];
+                    input[i] = input[variables_complete];
+                    input[variables_complete] = tmp;
+                    did_switch = true;
+                    break;
+                }
+            }
+            if (!did_switch) {
+                std::cout << "Couldn't switch. Aborting" << std::endl;
+                return {};
+            }
+        }
+        // 2. Scale row
+        double factor = input[variables_complete][variables_complete];
+        if (factor != 1) {
+            for (int i = variables_complete; i < input[variables_complete].size(); i++) {
+                input[variables_complete][i] /= factor;
+            }
+        }
+        // 3. Multiply onto other rows
+        for (int idx_row = 0; idx_row < input.size(); idx_row++) {
+            if (idx_row == variables_complete) {
+                continue;
+            }
+            double factor = input[idx_row][variables_complete];
+            if (factor != 0) {
+                for (int i = variables_complete; i < input[variables_complete].size(); i++) {
+                    input[idx_row][i] -= factor * input[variables_complete][i];
+                }
+            }
+        }
+        steps++;
+        if (++variables_complete == input.size()) {
+            done = true;
+        }
+    }
+    
+    std::vector<double> ret(input.size(), 0);
+
+    for (int i = 0; i < input.size(); i++) {
+        ret[i] = input[i][input[i].size() - 1];
+    }
+
+    return ret;
+}
+
 void aoc24() {
-    bool use_test = false;
+    bool use_test = true;
     std::string fn = use_test ? "aoc24_test.txt" : "aoc24_real.txt";
     auto lines = read_file(fn);
 
     struct Particle3d {
+        int id;
         double x;
         double y;
         double z;
         double x_d;
         double y_d;
         double z_d;
+        void print() {
+            std::cout << std::format("x: {} y: {} z: {} xd: {} yd: {} zd: {}", x, y, z, x_d, y_d, z_d) << std::endl;
+        }
     };
     std::vector<Particle3d> hails = {};
+    int num_hails = 0;
 
     for (auto& line : lines) {
         auto the_split = split_string(line, " @ ");
         auto parts_pos = split_string(the_split[0], ", ");
         auto parts_dir = split_string(the_split[1], ", ");
         hails.push_back({
+            num_hails++,
             std::atof(parts_pos[0].c_str()),
             std::atof(parts_pos[1].c_str()),
             std::atof(parts_pos[2].c_str()),
@@ -1101,6 +1165,19 @@ void aoc24() {
             std::atof(parts_dir[2].c_str())
             });
     }
+
+    std::vector<std::vector<double>> to_solve = {};
+
+    for (int i = 0; i < hails.size() - 1; i++) {
+        auto y_factor = -hails[i].z_d + hails[i + 1].z_d;
+        auto z_factor = hails[i].y_d - hails[i + 1].y_d;
+        auto u_factor = hails[i].z - hails[i + 1].z;
+        auto v_factor = -hails[i].y + hails[i + 1].y;
+        auto scalar = hails[i].z * hails[i].y_d - hails[i].y * hails[i].z_d + hails[i + 1].y * hails[i + 1].z_d - hails[i + 1].z * hails[i + 1].y_d;
+        to_solve.push_back({ y_factor,z_factor,u_factor,v_factor,scalar });
+    }
+
+    auto ret = linear_solver(to_solve);
 
     int intersections_within = 0;
     double boundary_min = use_test ? 7 : 200'000'000'000'000;
@@ -1153,7 +1230,6 @@ void aoc24() {
 
             double denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
             if (std::abs(denominator) < 0.000001) {
-                std::cout << "denom" << std::endl;
                 continue;
             }
 
@@ -1172,6 +1248,235 @@ void aoc24() {
     }
 
     std::cout << "AOC24-1: " << intersections_within << std::endl;
+
+    struct Hail_move {
+        long long offset[3];
+        long long step[3];
+    };
+
+    std::vector<Hail_move> hail_moves(hails.size());
+
+    // Hagen med ID 86, 165 har samma x-pos och samma riktning!
+    // Men! De korsas inte i framtiden, kolla t ex deras aktuella y och y_d.
+    // För att stenen ska hinna ikapp det hagel av dessa två som den träffar sist
+    //  behöver x_d < -86
+    if (!use_test) {
+        hails[86].print();
+        hails[165].print();
+    }
+
+    for (int idx_hail = 0; idx_hail < hails.size(); idx_hail++) {
+        auto& cur_hail = hails[idx_hail];
+        hail_moves[idx_hail] = {
+            (long long)(cur_hail.x),// - hails[0].x),
+            (long long)(cur_hail.y),// - hails[0].y),
+            (long long)(cur_hail.z),// - hails[0].z),
+            (long long)cur_hail.x_d,
+            (long long)cur_hail.y_d,
+            (long long)cur_hail.z_d,
+        };
+    }
+
+    struct Asd3 {
+        int idx_param;
+        long long test_step;
+        long long test_offset;
+        std::vector<long long> t;
+    };
+    std::vector<Asd3> asd3 = {};
+
+    std::vector<long long> max_val(3, 0);
+    std::vector<long long> min_val(3, std::numeric_limits<long long>::max());
+    for (int i = 0; i < 3; i++) {
+        //std::cout << std::endl << "Running for param " << i << std::endl;
+        for (auto& h : hail_moves) {
+            if (h.offset[i] > max_val[i]) {
+                max_val[i] = h.offset[i];
+            }
+            if (h.offset[i] < min_val[i]) {
+                min_val[i] = h.offset[i];
+            }
+        }
+        for (long long test_step = -10; test_step < 10; test_step++) {
+            for (long long test_offset = min_val[i] - 10; test_offset < max_val[i] + 10; test_offset++) {
+                if (i == 1 && test_step == 1 && test_offset == 13) {
+                    int a = 3;
+                }
+                bool ok_for_all = true;
+                std::vector<long long> t_all(hail_moves.size(), 0);
+                for (int idx_move = 0; idx_move < hail_moves.size(); idx_move++) {
+                    auto& h = hail_moves[idx_move];
+                    bool ok_for_current = false;
+                    long long pt1 = h.offset[i] - test_offset;
+                    long long pt2 = test_step - h.step[i];
+                    if (pt1 == 0 && pt2 == 0) {
+                        ok_for_current = true;
+                        t_all[idx_move] = 1000;
+                    }
+                    if (pt2 != 0) {
+                        if (std::abs(pt1) % std::abs(pt2) == 0) {
+                            auto t = pt1 / pt2;
+                            t_all[idx_move] = t;
+                            ok_for_current = true;
+                        }
+                    }
+                    if (pt2 != 0) {
+                        if (std::abs(pt1) % std::abs(pt2) == 0) {
+                            auto t = pt1 / pt2;
+                            t_all[idx_move] = t;
+                            ok_for_current = true;
+                        }
+                    }
+                    ok_for_all = ok_for_all && ok_for_current;
+                    if (!ok_for_all) {
+                        break;
+                    }
+                }
+                if (ok_for_all) {
+                    asd3.push_back({ i,test_step,test_offset,t_all });
+                    //std::cout << test_offset << ": " << test_step << ": ";
+                    //for (auto t : t_all) {
+                    //    std::cout << t << " ";
+                    //}
+                    //std::cout << std::endl;
+                }
+            }
+        }
+    }
+
+
+
+    for (int idx_x = 0; idx_x < asd3.size(); idx_x++) {
+        auto& el_x = asd3[idx_x];
+        if (el_x.idx_param != 0) {
+            break;
+        }
+        bool y_found = false;
+        bool z_found = false;
+        Asd3 el_y = {};
+        Asd3 el_z = {};
+        for (int idx_rest = idx_x + 1; idx_rest < asd3.size(); idx_rest++) {
+            auto& el = asd3[idx_rest];
+            if (el.idx_param == 0) {
+                continue;
+            }
+            if (el.idx_param == 1 && y_found) {
+                continue;
+            }
+            if (el.idx_param == 2 && !y_found) {
+                break;
+            }
+            bool all_equal = true;
+            for (int idx_t = 0; idx_t < el.t.size(); idx_t++) {
+                if (el_x.t[idx_t] != 1000 && el.t[idx_t] != 1000 && el_x.t[idx_t] != el.t[idx_t]) {
+                    all_equal = false;
+                }
+            } 
+            if (all_equal) {
+                if (el.idx_param == 1) {
+                    y_found = true;
+                    el_y = el;
+                }
+                if (el.idx_param == 2) {
+                    z_found = true;
+                    el_z = el;
+                }
+            }
+        }
+        if (y_found && z_found) {
+            std::cout << std::format("Found working:\n\tx: {} {}\n\ty: {} {}\n\tz: {} {}", el_x.test_offset, el_x.test_step, el_y.test_offset, el_y.test_step, el_z.test_offset, el_z.test_step) << std::endl;
+        }
+    }
+    return;
+
+    int aa = 3;
+    struct Asd {
+        long long test_step;
+        long long test_offset;
+        long long t;
+    };
+
+    struct Asd2 {
+        long long test_step;
+        long long test_offset;
+        std::vector<int> t;
+    };
+
+    std::vector<Asd2> valid_t[3];
+
+    for (long long test_step = -1000; test_step <= 1000; test_step++) {
+        if (test_step == 0) {
+            continue;
+        }
+        auto abs_step = std::abs(test_step);
+        bool found_solution_for_step[3] = {};
+        for (long long test_offset = 0; test_offset < 1000; test_offset++) {
+            for (int idx_param = 0; idx_param < 3; idx_param++) {
+                bool works_with_all_hails = true;
+                std::vector<int> t_per_hail(hail_moves.size());
+                if (test_step == -3 && test_offset == 0 && idx_param == 2) {
+                    int a = 3;
+                }
+
+                for (int i = 0; i < hail_moves.size(); i++) {
+                    bool works_with_this_hail = false;
+                    auto pt1 = hail_moves[i].offset[idx_param] - test_offset;
+                    auto pt2 = test_step - hail_moves[i].step[idx_param];
+                    int t = 0;
+
+                    if (pt1 == 0 && pt2 == 0) {
+                        // Not moving at all. Position is at collision
+                        t = std::numeric_limits<int>::max();
+                        works_with_this_hail = true;
+                    }
+                    if (pt1 == 0 && pt2 != 0) {
+                        // We're starting at the collision point
+                        t = 0;
+                        works_with_this_hail = true;
+                    }
+                    if (pt1 != 0 && pt2 == 0) {
+                        // No movement and no collision
+                    }
+                    if (pt1 != 0 && pt2 != 0) {
+                        if (std::abs(pt1) % std::abs(pt2) == 0) {
+                            works_with_this_hail = true;
+                            t = pt1 / pt2;
+                        }
+                    }
+                    t_per_hail[i] = t;
+                    works_with_all_hails = works_with_all_hails && works_with_this_hail;
+                }
+                if (works_with_all_hails && !found_solution_for_step[idx_param]) {
+                    found_solution_for_step[idx_param] = true;
+                    std::cout << std::format("{} {} {}", idx_param, test_step, test_offset) << std::endl;
+                    valid_t[idx_param].push_back({ test_step, test_offset, t_per_hail });
+                }
+            }
+        }
+    }
+
+    int a = 3;
+
+    //for (int idx_hail = 0; idx_hail < hail_moves.size(); idx_hail++) {
+    //    for (auto t_x : valid_t[0][idx_hail]) {
+    //        bool works_with_all_x = t_x.t == std::numeric_limits<int>::max();
+    //        bool is_in_y = false;
+    //        bool is_in_z = false;
+    //        for (auto t_y : valid_t[1][idx_hail]) {
+    //            if (works_with_all_x || t_y.t == std::numeric_limits<int>::max() || t_y.t == t_x.t) {
+    //                is_in_y = true;
+    //            }
+    //        }
+    //        for (auto t_z : valid_t[2][idx_hail]) {
+    //            if (t_z.t == std::numeric_limits<int>::max() || t_z.t == t_x.t) {
+    //                is_in_z = true;
+    //            }
+    //        }
+    //        if (is_in_y && is_in_z) {
+    //            std::cout << "#" << idx_hail << '\t' << "Can use : " << t_x.t << std::endl;
+    //        }
+    //    }
+    //}
 }
 
 int main() {
