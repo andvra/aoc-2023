@@ -525,9 +525,9 @@ void aoc05() {
         ranges_to_handle = new_ranges_to_handle;
     }
 
-    for (auto& r : ranges_to_handle) {
-        std::cout << r.offset - r.offset_original << " - " << r.offset - r.offset_original + r.cnt - 1 << ": " << r.offset_original << std::endl;
-    }
+    //for (auto& r : ranges_to_handle) {
+    //    std::cout << r.offset - r.offset_original << " - " << r.offset - r.offset_original + r.cnt - 1 << ": " << r.offset_original << std::endl;
+    //}
 
     auto seed_split = split_string(lines[0], ": ");
     auto seed_strings = split_string(seed_split[1], " ");
@@ -550,9 +550,25 @@ void aoc05() {
             }
         }
 
-        int a = 3;
+        long long min_val = std::numeric_limits<long long>::max();
+        for (auto& sr : seed_ranges) {
+            for (auto& r : ranges_to_handle) {
+                long long xs1 = sr.offset;
+                long long xe1 = sr.offset + sr.cnt - 1;
+                long long xs2 = r.offset - r.offset_original;
+                long long xe2 = r.offset - r.offset_original + r.cnt - 1;
+                if ((xs2 <= xe1 && xe2 >= xs1) ||
+                    (xs1 <= xe2 && xe1 >= xs2)) {
+                    auto max_s = std::max(xs1, xs2);
+                    auto cur_min = max_s + r.offset_original;
+                    if (cur_min < min_val) {
+                        min_val = cur_min;
+                    }
+                }
+            }
+        }
+        std::cout << std::format("AOC05-{}: {}", idx_pt + 1, min_val) << std::endl;
     }
-
 }
 
 void aoc19() {
