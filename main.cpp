@@ -6,6 +6,7 @@
 #include <set>
 #include <chrono>
 #include <algorithm>
+#include <map>
 
 std::vector<std::string> read_file(std::string fn) {
     std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
@@ -191,6 +192,71 @@ std::vector<Graph_node*> connected_nodes(std::vector<Graph_node>& all_nodes, Gra
     }
 
     return ret;
+}
+
+std::string replace_all(std::string s, std::string to_replace, std::string replace_with) {
+    auto pos = s.find(to_replace, 0);
+    while (pos != std::string::npos) {
+        s.replace(pos, to_replace.size(), replace_with);
+        pos = s.find(to_replace, 0);
+    }
+
+    return s;
+}
+
+void aoc01() {
+    auto lines = read_file("aoc01_real.txt");
+    std::vector<std::string> to_replace = {
+        "one",  "two",  "three", "four", "five", "six", "seven", "eight", "nine"
+    };
+    // twoone should be 21 (apparently), so we lazy-replace in this way
+    std::vector<std::string> replace_with = {
+    "o1e",  "t2o",  "th3ee", "f4ur", "f5ve", "s6x", "se7en", "ei8ht", "n9ne"
+    };
+
+    for (int idx_part = 0; idx_part < 2; idx_part++) {
+        int val = 0;
+        for (auto& line : lines) {
+            auto s = line;
+            if (idx_part == 1) {
+                bool done = false;
+                while (!done) {
+                    bool found_any = false;
+                    int min_idx = 10000;
+                    int pos[9] = {};
+                    for (int i = 0; i < to_replace.size(); i++) {
+                        auto cur_pos = s.find(to_replace[i]);
+                        if (cur_pos != std::string::npos) {
+                            found_any = true;
+                            pos[i] = cur_pos;
+                            if (min_idx == 10000 || cur_pos < pos[min_idx]) {
+                                min_idx = i;
+                            }
+                        }
+                    }
+                    if (found_any) {
+                        s = s.replace(pos[min_idx], to_replace[min_idx].size(), replace_with[min_idx]);
+                    }
+                    else {
+                        done = true;
+                    }
+                }
+            }
+            int first = 100;
+            int last = 0;
+            for (auto c : s) {
+                if (c >= '0' && c <= '9') {
+                    last = c - '0';
+                    if (first == 100) {
+                        first = c - '0';
+                    }
+                }
+            }
+            val += (10 * first + last);
+        }
+
+        std::cout << std::format("AOC01-{}: {}", idx_part + 1, val) << std::endl;
+    }
 }
 
 void aoc19() {
@@ -1565,13 +1631,14 @@ void aoc25() {
 
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
+    aoc01();
 	//aoc19();
     //aoc20();
     //aoc21();
     //aoc22();
     //aoc23();
     //aoc24();
-    aoc25();
+    //aoc25();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
