@@ -339,6 +339,61 @@ void aoc02() {
 
 }
 
+void aoc04() {
+    auto lines = read_file("aoc04_real.txt");
+
+    int ret1 = 0;
+    std::vector<int> num_copies(lines.size(), 1);
+
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        auto& line = lines[idx_line];
+        auto id_split = split_string(line, ": ");
+        auto card_split = split_string(id_split[1], " | ");
+        for (int i = 0; i < 5; i++) {
+            for (int idx_split = 0; idx_split < 2; idx_split++) {
+                card_split[idx_split] = replace_all(card_split[idx_split], "  ", " ");
+            }
+        }
+        auto win_number_string = split_string(card_split[0], " ");
+        auto my_number_string = split_string(card_split[1], " ");
+
+        std::set<int> numbers = {};
+        for (auto& n : my_number_string) {
+            numbers.insert(std::atoi(n.c_str()));
+        }
+        int cnt_before = numbers.size();
+        for (auto& n : win_number_string) {
+            numbers.insert(std::atoi(n.c_str()));
+        }
+        int cnt_after = numbers.size();
+
+        int num_missed_winners = cnt_after - cnt_before;
+        int num_winners = win_number_string.size() - num_missed_winners;
+
+        int cur_ret = 0;
+        if (num_missed_winners < win_number_string.size()) {
+            cur_ret = 1;
+            auto idx_end_exclusive = win_number_string.size() - num_missed_winners;
+            for (int i = 1; i < idx_end_exclusive; i++) {
+                cur_ret *= 2;
+            }
+        }
+        ret1 += cur_ret;
+
+        for (int i = idx_line + 1; i < idx_line + 1 + num_winners; i++) {
+            num_copies[i] += num_copies[idx_line];
+        }
+    }
+
+    int ret2 = 0;
+    for (auto c : num_copies) {
+        ret2 += c;
+    }
+
+    std::cout << "AOC04-1: " << ret1 << std::endl;
+    std::cout << "AOC04-2: " << ret2 << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -1712,7 +1767,8 @@ void aoc25() {
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
     //aoc01();
-    aoc02();
+    //aoc02();
+    aoc04();
 	//aoc19();
     //aoc20();
     //aoc21();
