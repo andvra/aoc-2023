@@ -394,6 +394,167 @@ void aoc04() {
     std::cout << "AOC04-2: " << ret2 << std::endl;
 }
 
+void aoc05() {
+    auto lines = read_file("aoc05_test.txt");
+
+    struct Range {
+        long long offset;
+        long long cnt;
+    };
+
+    struct Resource_map {
+        int type;
+        Range range;
+        long long map_offset;
+    };
+
+    std::vector<std::vector<Resource_map>> maps(7);
+
+    int cur_type = 0;
+    bool read_numbers = false;
+    std::map<std::string, int> label_to_type = {
+        {"seed", 0},
+        {"soil", 1},
+        {"fert", 2},
+        {"wate", 3},
+        {"ligh", 4},
+        {"temp", 5},
+        {"humi", 6},
+    };
+
+    for (int idx_line = 1; idx_line < lines.size(); idx_line++) {
+        auto& line = lines[idx_line];
+        if (line.empty()) {
+            read_numbers = false;
+        }
+        if (read_numbers) {
+            auto ns = split_string(line, " ");
+            auto dst_offset = std::atoll(ns[0].c_str());
+            auto src_offset = std::atoll(ns[1].c_str());
+            auto cnt = std::atoll(ns[2].c_str());
+            auto map_offset = dst_offset - src_offset;
+            maps[cur_type].push_back({ cur_type, src_offset, cnt, map_offset });
+        }
+        if (!line.empty() && !read_numbers) {
+            auto ss = line.substr(0, 4);
+            if (label_to_type.count(ss) > 0) {
+                cur_type = label_to_type[ss];
+                read_numbers = true;
+            }
+            else {
+                std::cout << "Could not find label starting with " << ss << std::endl;
+            }
+        }
+    }
+
+    // Checks for overlap. Result: there are no overlap between maps on the same level
+    //for (int map_type = 0; map_type < 7; map_type++) {
+    //    for (int i = 0; i < maps[map_type].size(); i++) {
+    //        auto map1 = maps[map_type][i];
+    //        auto xs1 = map1.src_offset;
+    //        auto xe1 = map1.src_offset + map1.cnt - 1;
+    //        for (int j = i + 1; j < maps[map_type].size(); j++) {
+    //            auto map2 = maps[map_type][j];
+    //            auto xs2 = map2.src_offset;
+    //            auto xe2 = map2.src_offset + map2.cnt - 1;
+    //            bool is_overlap = false;
+    //            if (xs2 <= xe1 && xe2 >= xs1) {
+    //                is_overlap = true;
+    //            }
+    //            if (xs1 <= xe2 && xe1 >= xs2) {
+    //                is_overlap = true;
+    //            }
+    //            if (is_overlap) {
+    //                std::cout << std::format("{} - {}:{} {}:{}", map_type, xs1, xe1, xs2, xe2) << std::endl;
+    //            }
+    //        }
+    //    }
+    //}
+
+    for (int map_level = 0; map_level < 7; map_level++) {
+        std::sort(maps[map_level].begin(), maps[map_level].end(), [](Resource_map& a, Resource_map& b) { return a.range.offset < b.range.offset; });
+    }
+
+    struct Range_track {
+        long long offset;
+        long long cnt;
+        long long offset_original;
+        int moved_at_level;
+    };
+    std::vector<Range_track> ranges_to_handle = { {0, std::numeric_limits<long long>::max(), 0, -1 }};
+
+    for (int map_level = 0; map_level < 7; map_level++) {
+        std::vector<Range_track> new_ranges_to_handle = {};
+        for (int idx_range = 0; idx_range < ranges_to_handle.size(); idx_range++) {
+            std::vector<Range_track> r_splits = { ranges_to_handle[idx_range] };
+            for (auto& m : maps[map_level]) {
+                for (int idx_rs = 0; idx_rs < r_splits.size(); idx_rs++) {
+                    auto r = r_splits[idx_rs];
+                    if (r.moved_at_level == map_level) {
+                        continue;
+                    }
+                    auto xs1 = r.offset;
+                    auto xe1 = r.offset + r.cnt - 1;
+                    auto xs2 = m.range.offset;
+                    auto xe2 = m.range.offset + m.range.cnt - 1;
+                    if ((xs2 <= xe1 && xe2 >= xs1) ||
+                        (xs1 <= xe2 && xe1 >= xs2)) {
+                        r_splits.erase(r_splits.begin() + idx_rs);
+                        std::vector<Range_track> new_parts = {};
+                        if (xs1 < xs2) {
+                            new_parts.push_back({ xs1,xs2 - xs1, r.offset_original, r.moved_at_level });
+                        }
+                        auto max_s = std::max(xs1, xs2);
+                        auto min_e = std::min(xe1, xe2);
+                        // We want to offset this offset! The source is mapped to another destination
+                        new_parts.push_back({ max_s + m.map_offset, min_e - max_s + 1, r.offset_original + m.map_offset, map_level });
+                        if (xe1 > xe2) {
+                            new_parts.push_back({ xe2 + 1,xe1 - xe2, r.offset_original, r.moved_at_level });
+                        }
+
+                        for (auto p : new_parts) {
+                            r_splits.push_back(p);
+                        }
+                    }
+                }
+            }
+            for (auto& x : r_splits) {
+                new_ranges_to_handle.push_back(x);
+            }
+        }
+        ranges_to_handle = new_ranges_to_handle;
+    }
+
+    for (auto& r : ranges_to_handle) {
+        std::cout << r.offset - r.offset_original << " - " << r.offset - r.offset_original + r.cnt - 1 << ": " << r.offset_original << std::endl;
+    }
+
+    auto seed_split = split_string(lines[0], ": ");
+    auto seed_strings = split_string(seed_split[1], " ");
+
+    for (int idx_pt = 0; idx_pt < 2; idx_pt++) {
+        std::vector<Range> seed_ranges = {};
+        long long min_location = std::numeric_limits<long long>::max();
+
+        if (idx_pt == 0) {
+            for (int i = 0; i < seed_strings.size(); i ++) {
+                auto offset_s = seed_strings[i];
+                seed_ranges.push_back({ std::atoll(offset_s.c_str()), 1 });
+            }
+        }
+        if (idx_pt == 1) {
+            for (int i = 0; i < seed_strings.size(); i += 2) {
+                auto offset_s = seed_strings[i];
+                auto cnt_s = seed_strings[i + 1];
+                seed_ranges.push_back({ std::atoll(offset_s.c_str()), std::atoll(cnt_s.c_str()) });
+            }
+        }
+
+        int a = 3;
+    }
+
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -1768,7 +1929,8 @@ int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
     //aoc01();
     //aoc02();
-    aoc04();
+    //aoc04();
+    aoc05();
 	//aoc19();
     //aoc20();
     //aoc21();
