@@ -1295,6 +1295,135 @@ void aoc24() {
     std::cout << "AOC24-2: " << std::setprecision(15) << ans << std::endl;
 }
 
+void aoc25() {
+    bool use_test = true;
+    std::string fn = use_test ? "aoc25_test.txt" : "aoc25_real.txt";
+    auto lines = read_file(fn);
+
+    struct Graph_node {
+        int id;
+        std::string name;
+        std::vector<Graph_node*> neighbors;
+    };
+
+    std::vector<Graph_node> graph_nodes = {};
+    int cnt_nodes = 0;
+    for (auto& line : lines) {
+        auto split = split_string(line, ": ");
+        auto neighbor_names = split_string(split[1], " ");
+        std::vector<std::string> node_names = { split[0] };
+        for (auto& nn : neighbor_names) {
+            node_names.push_back(nn);
+        }
+        for (auto& nn : node_names) {
+            bool found = false;
+            for (auto& gn : graph_nodes) {
+                if (gn.name == nn) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                graph_nodes.push_back({ cnt_nodes++,nn });
+            }
+        }
+    }
+
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        auto split = split_string(lines[idx_line], ": ");
+        auto neighbor_names = split_string(split[1], " ");
+        for (auto& gn : graph_nodes) {
+            if (gn.name == split[0]) {
+                for (auto& nn : neighbor_names) {
+                    for (int i = 0; i < graph_nodes.size(); i++) {
+                        if (graph_nodes[i].name == nn) {
+                            gn.neighbors.push_back(&graph_nodes[i]);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto& n : graph_nodes) {
+        for (auto& nn : n.neighbors) {
+            bool is_ok = false;
+            for (auto& nnn : nn->neighbors) {
+                if (nnn == &n) {
+                    is_ok = true;
+                    break;
+                }
+            }
+            if (!is_ok) {
+                nn->neighbors.push_back(&n);
+            }
+        }
+    }
+
+    struct Node_head {
+        Graph_node* node;
+        Node_head* last_head;
+    };
+
+    for (auto& gn : graph_nodes) {
+        std::cout << "Testing " << gn.name << std::endl;
+        for (auto excluded_neighbor : gn.neighbors) {
+            std::cout << "  Excluding " << excluded_neighbor->name << std::endl;
+            bool can_be_reached = false;
+            for (auto n : gn.neighbors) {
+                if (n == excluded_neighbor) {
+                    continue;
+                }
+                int max_branches = 1000;
+                int num_branches = 0;
+                std::vector<Node_head> node_heads(max_branches);
+                Node_head root_head = { &gn,nullptr };
+                node_heads[num_branches++] = { n, &root_head };
+                int idx_start = 0;
+                int idx_end_exclusive = num_branches;
+                int idx_valid = -1;
+                for (int i = idx_start; i < idx_end_exclusive; i++) {
+                    if (node_heads[i].node->id == excluded_neighbor->id) {
+                        idx_valid = i;
+                        can_be_reached = true;
+                        break;
+                    }
+                    for (auto x : node_heads[i].node->neighbors) {
+                        if (x == &gn) {
+                            continue;
+                        }
+                        bool looping = false;
+                        Node_head* cur_node_head = &node_heads[i];
+                        while (cur_node_head != nullptr) {
+                            if (x == cur_node_head->node) {
+                                looping = true;
+                                break;
+                            }
+                            cur_node_head = cur_node_head->last_head;
+                        }
+                        if (!looping) {
+                            node_heads[num_branches++] = { x, &node_heads[i] };
+                        }
+                    }
+                    idx_start = idx_end_exclusive;
+                    idx_end_exclusive = num_branches;
+                }
+                if (can_be_reached) {
+                    std::cout << "    " << excluded_neighbor->name << " can be reached\n      ";
+                    Node_head* cur_node_head = &node_heads[idx_valid];
+                    while (cur_node_head != nullptr) {
+                        std::cout << cur_node_head->node->name << " ";
+                        cur_node_head = cur_node_head->last_head;
+                    }
+                    std::cout << std::endl;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 int main() {
     auto t_start = std::chrono::high_resolution_clock::now();
 	//aoc19();
@@ -1302,7 +1431,8 @@ int main() {
     //aoc21();
     //aoc22();
     //aoc23();
-    aoc24();
+    //aoc24();
+    aoc25();
     auto t_end = std::chrono::high_resolution_clock::now();
 
     auto duration = duration_cast<std::chrono::milliseconds>(t_end - t_start);
