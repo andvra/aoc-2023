@@ -936,6 +936,151 @@ void aoc09() {
     std::cout << std::format("AOC09-{}: {}", 2, tot_score_beginning) << std::endl;
 }
 
+void aoc10() {
+    auto lines = read_file("aoc10_real.txt");
+
+    struct Tile {
+        int row;
+        int col;
+        bool con_left;
+        bool con_right;
+        bool con_up;
+        bool con_down;
+    };
+
+    struct Pos {
+        int row;
+        int col;
+    };
+
+    int num_rows = lines.size();
+    int num_cols = lines[0].size();
+
+    Pos start_pos = {};
+    std::vector<std::vector<Tile>> tiles(num_rows, std::vector<Tile>(num_cols));
+    std::set<char> set_left = { '-', 'J', '7' };
+    std::set<char> set_right = { '-', 'L', 'F' };
+    std::set<char> set_up = { '|', 'L', 'J' };
+    std::set<char> set_down = { '|', '7', 'F' };
+    std::map<char, Tile*> tile_ref = {};
+
+    for (int row = 0; row < num_rows; row++) {
+        for (int col = 0; col < num_cols; col++) {
+            char c = lines[row][col];
+            if (c == 'S') {
+                start_pos = { row,col };
+            }
+            Tile tile = { };
+            tile.row = row;
+            tile.col = col;
+            tile.con_left = set_left.count(c) > 0;
+            tile.con_right = set_right.count(c) > 0;
+            tile.con_up = set_up.count(c) > 0;
+            tile.con_down = set_down.count(c) > 0;
+            tiles[row][col] = tile;
+            tile_ref[c] = &tiles[row][col];
+        }
+    }
+
+    std::set<char> candidates[2] = {};
+    int sr = start_pos.row;
+    int sc = start_pos.col;
+    int idx_c = 0;
+    if ((sr > 0) && tiles[sr - 1][sc].con_down) {
+        candidates[idx_c++] = set_up;
+    }
+    if ((sr < num_rows - 1) && tiles[sr + 1][sc].con_up) {
+        candidates[idx_c++] = set_down;
+    }
+    if ((sc > 0) && tiles[sr][sc - 1].con_right) {
+        candidates[idx_c++] = set_left;
+    }
+    if ((sc < num_cols - 1) && tiles[sr][sc + 1].con_left) {
+        candidates[idx_c++] = set_right;
+    }
+
+    std::set<char> intersection;
+    std::set_intersection(candidates[0].begin(), candidates[0].end(), candidates[1].begin(), candidates[1].end(),
+        std::inserter(intersection, intersection.begin()));
+    if (intersection.size() != 1) {
+        std::cout << "ERROR intersection has wrong amount of elements: " << intersection.size() << std::endl;
+    }
+
+    Tile ref = *tile_ref[*intersection.begin()];
+    ref.row = sr;
+    ref.col = sc;
+    tiles[sr][sc] = ref;
+    Tile* start_tile = &tiles[sr][sc];
+
+    Tile* last_tile = nullptr;
+    Tile* cur_tile = start_tile;
+    int loop_size = 0;
+
+    std::set<Tile*> loop_tiles = {};
+
+    while (cur_tile != start_tile || last_tile == nullptr) {
+        loop_tiles.insert(cur_tile);
+        Tile* ignored_tile = last_tile;
+        last_tile = cur_tile;
+        int cur_row = cur_tile->row;
+        int cur_col = cur_tile->col;
+        if (cur_tile->con_right && &tiles[cur_row][cur_col + 1] != ignored_tile) {
+            cur_tile = &tiles[cur_row][cur_col + 1];
+        }
+        else if (cur_tile->con_left && &tiles[cur_row][cur_col - 1] != ignored_tile) {
+            cur_tile = &tiles[cur_row][cur_col - 1];
+        }
+        else if (cur_tile->con_up && &tiles[cur_row - 1][cur_col] != ignored_tile) {
+            cur_tile = &tiles[cur_row - 1][cur_col];
+        }
+        else if (cur_tile->con_down && &tiles[cur_row + 1][cur_col] != ignored_tile) {
+            cur_tile = &tiles[cur_row + 1][cur_col];
+        }
+        loop_size++;
+    }
+
+    int num_enclosed_tiles = 0;
+    for (int row = 0; row < tiles.size(); row++) {
+        Tile* last_tile = nullptr;
+        int before = num_enclosed_tiles;
+        int line_passes = 0;
+        Tile* edge_start = nullptr;
+        Tile* edge_end = nullptr;
+        for (int col = 0; col < tiles[row].size(); col++) {
+            Tile* cur_tile = &tiles[row][col];
+            bool current_is_loop_tile = loop_tiles.count(cur_tile) > 0;
+            bool count_the_edge = false;
+            if (current_is_loop_tile && cur_tile->con_right && (cur_tile->con_down || cur_tile->con_up)) {
+                edge_start = cur_tile;
+            }
+            if (current_is_loop_tile && cur_tile->con_left && (cur_tile->con_down || cur_tile->con_up)) {
+                edge_end = cur_tile;
+                count_the_edge = edge_start->con_down != edge_end->con_down;
+                edge_start = nullptr;
+                edge_end = nullptr;
+            }
+            bool is_vert = cur_tile->con_down && !cur_tile->con_left && !cur_tile->con_right;
+            if (current_is_loop_tile && (is_vert || count_the_edge)) {
+                line_passes++;
+            }
+            if (!current_is_loop_tile && (line_passes % 2 == 1)) {
+                num_enclosed_tiles++;
+            }
+            last_tile = cur_tile;
+        }
+    }
+
+    std::cout << std::format("AOC10-{}: {}", 1, loop_size / 2) << std::endl;
+    std::cout << std::format("AOC10-{}: {}", 2, num_enclosed_tiles) << std::endl;
+}
+
+void aoc12() {
+    auto lines = read_file("aoc12_test.txt");
+
+    std::cout << std::format("AOC12-{}: {}", 1, 123) << std::endl;
+    std::cout << std::format("AOC12-{}: {}", 2, 123) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2315,7 +2460,9 @@ int main() {
     //aoc06();
     //aoc07();
     //aoc08();
-    aoc09();
+    //aoc09();
+    //aoc10();
+    aoc12();
 	//aoc19();
     //aoc20();
     //aoc21();
