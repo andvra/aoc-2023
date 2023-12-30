@@ -627,6 +627,109 @@ void aoc06() {
     std::cout << std::format("AOC06-{}: {}", 2, ans_pt2) << std::endl;
 }
 
+void aoc07() {
+    auto lines = read_file("aoc07_real.txt");
+    struct Hand {
+        long long type;
+        long long bid;
+        long long rank_val;
+        long long rank;
+        std::vector<long long> card_vals;
+    };
+
+    std::map<char, int> card_map = {
+        {'2', 2},
+        {'3', 3},
+        {'4', 4},
+        {'5', 5},
+        {'6', 6},
+        {'7', 7},
+        {'8', 8},
+        {'9', 9},
+        {'T', 10},
+        {'J', 11},
+        {'Q', 12},
+        {'K', 13},
+        {'A', 14},
+    };
+    
+    std::vector<Hand> hands = {};
+
+    for (auto& line : lines) {
+        auto parts = split_string(line, " ");
+        Hand hand = {};
+        hand.card_vals.resize(parts[0].size());
+        for (int i = 0; i < parts[0].size(); i++) {
+            hand.card_vals[i] = card_map[parts[0][i]];
+        }
+        hand.bid = std::atoll(parts[1].c_str());
+        hands.push_back(hand);
+    }
+
+    auto get_ranks = [&hands, &card_map](bool use_joker) {
+        for (auto& hand : hands) {
+            std::map<int, int> m = {};
+            int max_cnt = 0;
+            for (auto& c : hand.card_vals) {
+                bool is_joker = (c == card_map['J']);
+                if (m.count(c) > 0) {
+                    m[c]++;
+                }
+                else {
+                    m[c] = 1;
+                }
+                if (!(is_joker && use_joker) && (m[c] > max_cnt)) {
+                    max_cnt = m[c];
+                }
+            }
+
+            auto num_different = m.size();
+            if (use_joker && m.count(card_map['J']) > 0) {
+                num_different--;
+                max_cnt += m[card_map['J']];
+            }
+
+            if (use_joker && m.count(card_map['J']) > 0 && m[card_map['J']] == 5) {
+                num_different = 1;
+                max_cnt = 5;
+            }
+
+            long long type = 0;
+            switch (num_different) {
+            case 1: type = 6; break;
+            case 2: max_cnt == 4 ? type = 5 : type = 4; break;
+            case 3: max_cnt == 3 ? type = 3 : type = 2; break;
+            case 4: type = 1; break;
+            case 5: type = 0; break;
+            }
+            hand.type = type;
+            hand.rank_val = hand.type * 1'000'000'000'000;
+            long long mult = 1;
+            for (int i = 4; i >= 0; i--) {
+                long long card_val = hand.card_vals[i];
+                if (use_joker && (card_val == card_map['J'])) {
+                    card_val = 1;
+                }
+                hand.rank_val += mult * card_val;
+                mult *= 100;
+            }
+        }
+    };
+
+    for (int idx_pt = 1; idx_pt < 3; idx_pt++) {
+        long long ans = 0;
+
+        get_ranks(idx_pt == 1 ? false : true);
+        std::sort(hands.begin(), hands.end(), [](Hand& a, Hand& b) {return a.rank_val > b.rank_val; });
+
+        for (int i = 0; i < hands.size(); i++) {
+            hands[i].rank = hands.size() - i;
+            ans += hands[i].rank * hands[i].bid;
+        }
+
+        std::cout << std::format("AOC07-{}: {}", idx_pt, ans) << std::endl;
+    }
+}
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2003,7 +2106,8 @@ int main() {
     //aoc02();
     //aoc04();
    // aoc05();
-    aoc06();
+    //aoc06();
+    aoc07();
 	//aoc19();
     //aoc20();
     //aoc21();
