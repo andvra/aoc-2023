@@ -876,6 +876,65 @@ void aoc08() {
         std::cout << std::format("AOC08-{}: {}", idx_part, num_steps) << std::endl;
     }
 }
+void aoc09() {
+    auto lines = read_file("aoc09_real.txt");
+
+    struct Row {
+        long long score;
+        std::vector<long long> vals;
+    };
+
+    std::vector<Row> rows = {};
+
+    for (auto& line : lines) {
+        auto parts = split_string(line, " ");
+        Row row = {};
+        for (auto& p : parts) {
+            row.vals.push_back(std::atoll(p.c_str()));
+        }
+        rows.push_back(row);
+    }
+
+    long long tot_score_beginning = 0;
+    long long tot_score_end = 0;
+
+    for (auto& row : rows) {
+        std::vector<std::vector<long long>> diffs = {};
+        std::vector<long long>* src = &row.vals;
+
+        bool all_zeros = false;
+        while (!all_zeros) {
+            all_zeros = true;
+            for (auto& x : *src) {
+                if (x != 0) {
+                    all_zeros = false;
+                }
+            }
+            if (!all_zeros) {
+                std::vector<long long> cur_diff(src->size() - 1);
+                for (int i = 0; i < src->size() - 1; i++) {
+                    cur_diff[i] = (*src)[i + 1] - (*src)[i];
+                }
+                diffs.push_back(cur_diff);
+                src = &diffs.back();
+            }
+        }
+        long long cur_score_beginning = 0;
+        long long cur_score_end = 0;
+        for (int i = diffs.size() - 2; i >= 0; i--) {
+            cur_score_beginning = diffs[i].front() - cur_score_beginning;
+            cur_score_end = diffs[i].back() + cur_score_end;
+        }
+        cur_score_beginning = row.vals.front() - cur_score_beginning;
+        cur_score_end = row.vals.back() + cur_score_end;
+        tot_score_beginning += cur_score_beginning;
+        tot_score_end += cur_score_end;
+
+    }
+
+    std::cout << std::format("AOC09-{}: {}", 1, tot_score_end) << std::endl;
+    std::cout << std::format("AOC09-{}: {}", 2, tot_score_beginning) << std::endl;
+}
 
 void aoc19() {
     bool is_rules = true;
@@ -2255,7 +2314,8 @@ int main() {
     //aoc05();
     //aoc06();
     //aoc07();
-    aoc08();
+    //aoc08();
+    aoc09();
 	//aoc19();
     //aoc20();
     //aoc21();
