@@ -1166,22 +1166,12 @@ void aoc12() {
                         if ((candidate < parent->bit_this) && ((candidate & (parent->bit_this | (parent->bit_this >> 1))) == 0)) {
                             auto bit_merged = parent->bit_merged | candidate;
                             if (idx_piece == row.pieces.size() - 1) {
-                                std::bitset<32> a(row.bit_must);
-                                std::bitset<32> b(bit_merged & row.bit_must);
-                                if (idx_row == 2) {
-                                    int a = 3;
-                                }
-                                auto s_must = a.to_string();
-                                auto s_combo = b.to_string();
                                 if ((bit_merged & row.bit_must) == row.bit_must) {
                                     row_score++;
                                 }
 
                             }
                             if (idx_piece < row.pieces.size() - 1) {
-                                if (idx_row == 2 && idx_piece == 2) {
-                                    int a = 3;
-                                }
                                 Node n = {};
                                 n.parent = parent;
                                 n.bit_merged = bit_merged;
