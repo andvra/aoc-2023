@@ -571,6 +571,62 @@ void aoc05() {
     }
 }
 
+void aoc06() {
+    auto lines = read_file("aoc06_real.txt");
+
+    auto time_row_split = split_string(lines[0], ": ");
+    auto distance_row_split = split_string(lines[1], ": ");
+    auto time_string = replace_all(time_row_split[1], "  ", " ");
+    time_string = time_string.substr(1);
+    auto distance_string = replace_all(distance_row_split[1], "  ", " ");
+    distance_string = distance_string.substr(1);
+    auto time_split = split_string(time_string, " ");
+    auto distance_split = split_string(distance_string, " ");
+
+    struct Run {
+        int time;
+        int distance;
+    };
+
+    std::vector<Run> runs = {};
+    for (int i = 0; i < time_split.size(); i++) {
+        runs.push_back({ std::atoi(time_split[i].c_str()), std::atoi(distance_split[i].c_str()) });
+    }
+
+    auto eval_run = [](long long time, long long distance) {
+        long long num_ways = 0;
+        for (long long hold_time = 1; hold_time < time; hold_time++) {
+            long long time_to_finish = hold_time + distance / hold_time;
+            if (time_to_finish < time) {
+                num_ways++;
+            }
+        }
+        return num_ways;
+    };
+
+    int ans_pt1 = 1;
+    for (auto& run : runs) {
+        int num_ways = 0;
+
+        ans_pt1 *= eval_run(run.time, run.distance);
+    }
+
+    std::string time_combined_string = {};
+    std::string distance_combined_string = {};
+    for (auto& run : runs) {
+        time_combined_string += std::to_string(run.time);
+        distance_combined_string += std::to_string(run.distance);
+    }
+
+    long long time_combined = std::atoll(time_combined_string.c_str());
+    long long distance_combined = std::atoll(distance_combined_string.c_str());
+
+    auto ans_pt2 = eval_run(time_combined, distance_combined);
+
+    std::cout << std::format("AOC06-{}: {}", 1, ans_pt1) << std::endl;
+    std::cout << std::format("AOC06-{}: {}", 2, ans_pt2) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -1946,7 +2002,8 @@ int main() {
     //aoc01();
     //aoc02();
     //aoc04();
-    aoc05();
+   // aoc05();
+    aoc06();
 	//aoc19();
     //aoc20();
     //aoc21();
