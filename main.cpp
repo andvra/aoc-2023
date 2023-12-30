@@ -204,6 +204,36 @@ std::string replace_all(std::string s, std::string to_replace, std::string repla
     return s;
 }
 
+long long gcd(long long a, long long b) {
+    while (b != 0) {
+        long long m = a % b;
+        a = b;
+        b = m;
+    }
+
+    return a;
+}
+
+long long lcm(long long a, long long b) {
+    return b * (a / gcd(a, b));
+}
+
+long long lcm(std::vector<long long> vals) {
+    long long ret = 0;
+
+    if (vals.size() == 0) {
+        return 0;
+    }
+
+    ret = vals[0];
+
+    for (int i = 1; i < vals.size(); i++) {
+        ret = lcm(ret, vals[i]);
+    }
+
+    return ret;
+}
+
 void aoc01() {
     auto lines = read_file("aoc01_real.txt");
     std::vector<std::string> to_replace = {
@@ -730,6 +760,123 @@ void aoc07() {
         std::cout << std::format("AOC07-{}: {}", idx_pt, ans) << std::endl;
     }
 }
+
+void aoc08() {
+    auto lines = read_file("aoc08_real.txt");
+
+    struct Node {
+        int id;
+        std::string name;
+        Node* left;
+        Node* right;
+    };
+
+    std::vector<Node> nodes = {};
+    std::string moves = lines[0];
+
+    for (int i = 2; i < lines.size(); i++) {
+        Node n = {};
+        n.id = i - 2;
+        n.name = lines[i].substr(0, 3);
+        nodes.push_back(n);
+    }
+
+    for (int i = 2; i < lines.size(); i++) {
+        auto name_left = lines[i].substr(7, 3);
+        auto name_right = lines[i].substr(12, 3);
+        for (auto& n : nodes) {
+            if (n.name == name_left) {
+                nodes[i - 2].left = &n;
+            }
+            if (n.name == name_right) {
+                nodes[i - 2].right = &n;
+            }
+        }
+    }
+
+    for (int idx_part = 1; idx_part < 3; idx_part++) {
+        std::vector<Node*> cur_nodes = {};
+        std::vector<Node*> end_nodes = {};
+
+        if (idx_part == 1) {
+            for (auto& n : nodes) {
+                if (n.name == "AAA") {
+                    cur_nodes.push_back(&n);
+                }
+                if (n.name == "ZZZ") {
+                    end_nodes.push_back(&n);
+                }
+            }
+        }
+        if (idx_part == 2) {
+            for (auto& n : nodes) {
+                if (n.name[2] == 'A') {
+                    cur_nodes.push_back(&n);
+                }
+                if (n.name[2] == 'Z') {
+                    end_nodes.push_back(&n);
+                }
+            }
+        }
+
+        long long idx_cur_move = 0;
+        long long num_steps = 0;
+        bool done = false;
+
+        long long last_step = 0;
+        std::vector<long long> intervals(cur_nodes.size());
+        int num_intervals_found = 0;
+
+        while (!done) {
+            if (idx_part == 2) {
+                for (int i = 0; i < cur_nodes.size(); i++) {
+                    if (intervals[i] > 0) {
+                        continue;
+                    }
+                    for (auto e : end_nodes) {
+                        if (cur_nodes[i] == e) {
+                            intervals[i] = num_steps;
+                            num_intervals_found++;
+                        }
+                    }
+                }
+                if (num_intervals_found == cur_nodes.size()) {
+                    num_steps = lcm(intervals);
+                    done = true;
+                    break;
+                }
+            }
+
+            for (int idx_node = 0; idx_node < cur_nodes.size(); idx_node++) {
+                if (moves[idx_cur_move] == 'L') {
+                    cur_nodes[idx_node] = cur_nodes[idx_node]->left;
+                }
+                else {
+                    cur_nodes[idx_node] = cur_nodes[idx_node]->right;
+                }
+            }
+
+            idx_cur_move = (idx_cur_move + 1) % moves.size();
+            num_steps++;
+
+            bool all_done = true;
+
+            for (auto c : cur_nodes) {
+                bool cur_done = false;
+                for (auto e : end_nodes) {
+                    if (c == e) {
+                        cur_done = true;
+                    }
+                }
+                all_done = all_done && cur_done;
+            }
+
+            done = all_done;
+        }
+        std::cout << std::format("AOC08-{}: {}", idx_part, num_steps) << std::endl;
+    }
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2105,9 +2252,10 @@ int main() {
     //aoc01();
     //aoc02();
     //aoc04();
-   // aoc05();
+    //aoc05();
     //aoc06();
-    aoc07();
+    //aoc07();
+    aoc08();
 	//aoc19();
     //aoc20();
     //aoc21();
