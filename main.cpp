@@ -1086,110 +1086,125 @@ void aoc12() {
         unsigned int len;
     };
 
-    std::vector<Row> rows = {};
-
-    for (auto& line : lines) {
-        auto parts = split_string(line, " ");
-        auto pieces_s = split_string(parts[1], ",");
-        unsigned int row_possible = 0;
-        unsigned int row_must = 0;
-        unsigned int steps = parts[0].size() - 1;
-        std::vector<unsigned int> pieces = {};
-        for (auto& s : pieces_s) {
-            pieces.push_back(std::atoi(s.c_str()));
-        }
-        for (int i = 0; i < parts[0].size(); i++) {
-            bool must = parts[0][i] == '#';
-            bool unknown = parts[0][i] == '?';
-            if (must) {
-                row_must |= (1u << steps);
-            }
-            if (must || unknown) {
-                row_possible |= (1u << steps);
-            }
-            steps--;
-        }
-        Row row = {};
-        row.bit_possible = row_possible;
-        row.bit_must = row_must;
-        row.pieces = pieces;
-        row.len = parts[0].size();
-        rows.push_back(row);
-    }
-
-    struct Node {
-        Node* parent;
-        unsigned int bit_merged;
-        unsigned int bit_this;
-    };
-
-    long long num_arrangements = 0;
-    for (int idx_row = 0; idx_row < rows.size(); idx_row++) {
-        auto& row = rows[idx_row];
-        std::vector<std::vector<int>> bit_candidates(row.pieces.size());
-        unsigned int lengths_before = 0;
-        for (int idx_piece = 0; idx_piece < row.pieces.size(); idx_piece++) {
-            unsigned int bit_piece = 1;
-            for (unsigned int i = 1; i < row.pieces[idx_piece]; i++) {
-                bit_piece |= (1u << i);
-            }
-            unsigned int idx_end_exclusive = row.len - lengths_before - row.pieces[idx_piece] + 1;
-            for (unsigned int i = 0; i < idx_end_exclusive; i++) {
-                unsigned int bit_shifted_piece = bit_piece << i;
-                if ((bit_shifted_piece | row.bit_possible) == row.bit_possible) {
-                    // The piece is a candidate to fit here
-                    bit_candidates[idx_piece].push_back(bit_shifted_piece);
+    for (int idx_part = 1; idx_part < 3; idx_part++) {
+        std::vector<Row> rows = {};
+        for (auto& line : lines) {
+            auto parts = split_string(line, " ");
+            if (idx_part == 2) {
+                std::string new_parts0 = parts[0];
+                std::string new_parts1 = parts[1];
+                for (int i = 0; i < 4; i++) {
+                    new_parts0 += "?";
+                    new_parts0 += parts[0];
+                    new_parts1 += ",";
+                    new_parts1 += parts[1];
                 }
+                parts[0] = new_parts0;
+                parts[1] = new_parts1;
             }
-            lengths_before += row.pieces[idx_piece];
-        }
-        long long row_score = 0;
-        std::vector<Node> buffer(10000);
-        int num_nodes = 0;
-        int idx_start_node = 0;
-        int idx_end_node_exclusive = 0;
-        for (int idx_piece = 0; idx_piece < row.pieces.size(); idx_piece++) {
-            for (int idx_candidate = 0; idx_candidate < bit_candidates[idx_piece].size(); idx_candidate++) {
-                auto& candidate = bit_candidates[idx_piece][idx_candidate];
-                if (idx_piece == 0) {
-                    Node n = {};
-                    n.parent = nullptr;
-                    n.bit_merged = candidate;
-                    n.bit_this = candidate;
-                    buffer[num_nodes++] = n;
+            auto pieces_s = split_string(parts[1], ",");
+            unsigned int row_possible = 0;
+            unsigned int row_must = 0;
+            unsigned int steps = parts[0].size() - 1;
+            std::vector<unsigned int> pieces = {};
+            for (auto& s : pieces_s) {
+                pieces.push_back(std::atoi(s.c_str()));
+            }
+            for (int i = 0; i < parts[0].size(); i++) {
+                bool must = parts[0][i] == '#';
+                bool unknown = parts[0][i] == '?';
+                if (must) {
+                    row_must |= (1u << steps);
                 }
-                if (idx_piece > 0) {
-                    for (int idx_parent = idx_start_node; idx_parent < idx_end_node_exclusive; idx_parent++) {
-                        Node* parent = &buffer[idx_parent];
-                        // Current candidate is smaller (= lower significant bit) and there is no overlap
-                        //  Also, check that there is at least one empty bit in between
-                        if ((candidate < parent->bit_this) && ((candidate & (parent->bit_this | (parent->bit_this >> 1))) == 0)) {
-                            auto bit_merged = parent->bit_merged | candidate;
-                            if (idx_piece == row.pieces.size() - 1) {
-                                if ((bit_merged & row.bit_must) == row.bit_must) {
-                                    row_score++;
+                if (must || unknown) {
+                    row_possible |= (1u << steps);
+                }
+                steps--;
+            }
+            Row row = {};
+            row.bit_possible = row_possible;
+            row.bit_must = row_must;
+            row.pieces = pieces;
+            row.len = parts[0].size();
+            rows.push_back(row);
+        }
+
+        struct Node {
+            Node* parent;
+            unsigned int bit_merged;
+            unsigned int bit_this;
+        };
+
+        long long num_arrangements = 0;
+        unsigned int mem_elements = 500'000'000;
+        std::vector<Node> buffer(mem_elements);
+        for (int idx_row = 0; idx_row < rows.size(); idx_row++) {
+            std::cout << "Working on row " << idx_row << std::endl;
+            auto& row = rows[idx_row];
+            std::vector<std::vector<unsigned int>> bit_candidates(row.pieces.size());
+            unsigned int lengths_before = 0;
+            for (int idx_piece = 0; idx_piece < row.pieces.size(); idx_piece++) {
+                unsigned int bit_piece = 1;
+                for (unsigned int i = 1; i < row.pieces[idx_piece]; i++) {
+                    bit_piece |= (1u << i);
+                }
+                unsigned int idx_end_exclusive = row.len - lengths_before - row.pieces[idx_piece] + 1;
+                unsigned int idx_start = 0;
+                for (int i = idx_piece + 1; i < row.pieces.size(); i++) {
+                    idx_start += row.pieces[i];
+                }
+
+                for (unsigned int i = idx_start; i < idx_end_exclusive; i++) {
+                    unsigned int bit_shifted_piece = bit_piece << i;
+                    if ((bit_shifted_piece | row.bit_possible) == row.bit_possible) {
+                        // The piece is a candidate to fit here
+                        bit_candidates[idx_piece].push_back(bit_shifted_piece);
+                    }
+                }
+                lengths_before += row.pieces[idx_piece];
+            }
+            long long row_score = 0;
+            int num_nodes = 0;
+            int idx_start_node = 0;
+            int idx_end_node_exclusive = 0;
+            for (int idx_piece = 0; idx_piece < row.pieces.size(); idx_piece++) {
+                for (int idx_candidate = 0; idx_candidate < bit_candidates[idx_piece].size(); idx_candidate++) {
+                    auto& candidate = bit_candidates[idx_piece][idx_candidate];
+                    if (idx_piece == 0) {
+                        buffer[num_nodes++] = { nullptr,candidate,candidate };
+                    }
+                    if (idx_piece > 0) {
+                        for (int idx_parent = idx_start_node; idx_parent < idx_end_node_exclusive; idx_parent++) {
+                            Node* parent = &buffer[idx_parent];
+                            // Current candidate is smaller (= lower significant bit) and there is no overlap
+                            //  Also, check that there is at least one empty bit in between
+                            if ((candidate < parent->bit_this) && ((candidate & (parent->bit_this | (parent->bit_this >> 1))) == 0)) {
+                                auto bit_merged = parent->bit_merged | candidate;
+                                if (idx_piece == row.pieces.size() - 1) {
+                                    if ((bit_merged & row.bit_must) == row.bit_must) {
+                                        row_score++;
+                                    }
+
                                 }
-
-                            }
-                            if (idx_piece < row.pieces.size() - 1) {
-                                Node n = {};
-                                n.parent = parent;
-                                n.bit_merged = bit_merged;
-                                n.bit_this = candidate;
-                                buffer[num_nodes++] = n;
+                                if (idx_piece < row.pieces.size() - 1) {
+                                    buffer[num_nodes++] = { parent, bit_merged, candidate };
+                                    if (num_nodes == mem_elements - 1) {
+                                        std::cout << "Memory about to run out" << std::endl;
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                idx_start_node = idx_end_node_exclusive;
+                idx_end_node_exclusive = num_nodes;
             }
-            idx_start_node = idx_end_node_exclusive;
-            idx_end_node_exclusive = num_nodes;
+            num_arrangements += row_score;
         }
-        num_arrangements += row_score;
+
+        std::cout << std::format("AOC12-{}: {}", idx_part, num_arrangements) << std::endl;
     }
 
-    std::cout << std::format("AOC12-{}: {}", 1, num_arrangements) << std::endl;
-    std::cout << std::format("AOC12-{}: {}", 2, 123) << std::endl;
 }
 
 void aoc19() {
