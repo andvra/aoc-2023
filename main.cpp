@@ -1136,31 +1136,41 @@ void aoc12() {
         };
 
         long long num_arrangements = 0;
-        unsigned int mem_elements = 500'000'000;
+        unsigned int mem_elements = 1'500'000'000;
         std::vector<Node> buffer(mem_elements);
         for (int idx_row = 0; idx_row < rows.size(); idx_row++) {
             std::cout << "Working on row " << idx_row << std::endl;
             auto& row = rows[idx_row];
             std::vector<std::vector<unsigned int>> bit_candidates(row.pieces.size());
             unsigned int lengths_before = 0;
+            unsigned int idx_end_exclusive = row.len;
             for (int idx_piece = 0; idx_piece < row.pieces.size(); idx_piece++) {
                 unsigned int bit_piece = 1;
                 for (unsigned int i = 1; i < row.pieces[idx_piece]; i++) {
                     bit_piece |= (1u << i);
                 }
-                unsigned int idx_end_exclusive = row.len - lengths_before - row.pieces[idx_piece] + 1;
                 unsigned int idx_start = 0;
                 for (int i = idx_piece + 1; i < row.pieces.size(); i++) {
-                    idx_start += row.pieces[i];
+                    // +1 to allow for space between pieces
+                    idx_start += row.pieces[i] + 1;
                 }
 
-                for (unsigned int i = idx_start; i < idx_end_exclusive; i++) {
+                // Check from right to left. Eg. with a piece of size 3:
+                //  00000111
+                //  00001110
+                //  00011100
+                //  etc.
+                unsigned max_possible_shifts = 0;
+                for (unsigned int i = idx_start; i < idx_end_exclusive - row.pieces[idx_piece] + 1; i++) {
                     unsigned int bit_shifted_piece = bit_piece << i;
                     if ((bit_shifted_piece | row.bit_possible) == row.bit_possible) {
                         // The piece is a candidate to fit here
                         bit_candidates[idx_piece].push_back(bit_shifted_piece);
+                        max_possible_shifts = i;
                     }
                 }
+                // Add -1 so we make space for an empty square between
+                idx_end_exclusive = max_possible_shifts - 1;
                 lengths_before += row.pieces[idx_piece];
             }
             long long row_score = 0;
