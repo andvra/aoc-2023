@@ -1255,71 +1255,87 @@ void aoc13() {
         }
     }
 
-    unsigned int tot_score = 0;
-    for (int idx_section = 0; idx_section < line_sections.size(); idx_section++) {
-        auto& ls = line_sections[idx_section];
-        int num_rows = ls.idx_end_excl - ls.idx_start;
-        int num_cols = lines[ls.idx_start].size();
-        int max_val_col = 0;
-        int max_pos_col = 0;
-        int max_val_row = 0;
-        int max_pos_row = 0;
-        
-        for (int idx_start = 0; idx_start < num_cols - 1; idx_start++) {
-            int idx_end_excl = std::min(idx_start + 1, num_cols - idx_start - 1);
-            int cnt = 0;
-            for (int i = 0; i < idx_end_excl; i++) {
-                if (ls.col_hashes[idx_start - i] == ls.col_hashes[idx_start + i + 1]) {
-                    cnt++;
+    std::vector<unsigned int> excl_pos_col(line_sections.size(), 10000);
+    std::vector<unsigned int> excl_pos_row(line_sections.size(), 10000);
+
+    for (int idx_part = 1; idx_part < 3; idx_part++) {
+        unsigned int tot_score = 0;
+        for (int idx_section = 0; idx_section < line_sections.size(); idx_section++) {
+            auto& ls = line_sections[idx_section];
+            int num_rows = ls.idx_end_excl - ls.idx_start;
+            int num_cols = lines[ls.idx_start].size();
+            int max_val_col = 0;
+            int max_pos_col = 0;
+            int max_val_row = 0;
+            int max_pos_row = 0;
+
+            for (int idx_start = 0; idx_start < num_cols - 1; idx_start++) {
+                int idx_end_excl = std::min(idx_start + 1, num_cols - idx_start - 1);
+                int cnt = 0;
+                bool used_modified = false;
+                for (int i = 0; i < idx_end_excl; i++) {
+                    auto left = ls.col_hashes[idx_start - i];
+                    auto right = ls.col_hashes[idx_start + i + 1];
+                    if (left == right) {
+                        cnt++;
+                    }
+                    else if (idx_part == 2 && !used_modified && std::popcount(left ^ right) == 1) {
+                        used_modified = true;
+                        cnt++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                if (cnt > max_val_col && cnt == idx_end_excl && excl_pos_col[idx_section] != idx_start) {
+                    max_val_col = cnt;
+                    max_pos_col = idx_start;
+                }
+            }
+            for (int idx_start = 0; idx_start < num_rows - 1; idx_start++) {
+                int idx_end_excl = std::min(idx_start + 1, num_rows - idx_start - 1);
+                int cnt = 0;
+                bool used_modified = false;
+                for (int i = 0; i < idx_end_excl; i++) {
+                    auto above = ls.row_hashes[idx_start - i];
+                    auto below = ls.row_hashes[idx_start + i + 1];
+                    if (above == below) {
+                        cnt++;
+                    }
+                    else if (idx_part == 2 && !used_modified && std::popcount(above ^ below) == 1) {
+                        used_modified = true;
+                        cnt++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                if (cnt > max_val_row && cnt == idx_end_excl && excl_pos_row[idx_section] != idx_start) {
+                    max_val_row = cnt;
+                    max_pos_row = idx_start;
+                }
+            }
+
+            if (max_val_col > 0 || max_val_row > 0) {
+                if (max_val_col == max_val_row) {
+                    std::cout << "same" << std::endl;
+                }
+                bool do_split_vert = max_val_col > max_val_row;
+                if (do_split_vert) {
+                    unsigned int ans = max_pos_col + 1;
+                    excl_pos_col[idx_section] = max_pos_col;
+                    tot_score += ans;
                 }
                 else {
-                    break;
+                    unsigned int ans = max_pos_row + 1;
+                    excl_pos_row[idx_section] = max_pos_row;
+                    tot_score += 100 * ans;
                 }
-            }
-            if (cnt > max_val_col && cnt == idx_end_excl) {
-                max_val_col = cnt;
-                max_pos_col = idx_start;
-            }
-        }
-        for (int idx_start = 0; idx_start < num_rows - 1; idx_start++) {
-            int idx_end_excl = std::min(idx_start + 1, num_rows - idx_start - 1);
-            int cnt = 0;
-            for (int i = 0; i < idx_end_excl; i++) {
-                if (ls.row_hashes[idx_start - i] == ls.row_hashes[idx_start + i + 1]) {
-                    cnt++;
-                }
-                else {
-                    break;
-                }
-            }
-            if (cnt > max_val_row && cnt == idx_end_excl) {
-                max_val_row = cnt;
-                max_pos_row = idx_start;
             }
         }
 
-        if (max_val_col > 0 || max_val_row > 0) {
-            if (max_val_col == max_val_row) {
-                std::cout << "same" << std::endl;
-            }
-            bool do_split_vert = max_val_col > max_val_row;
-            if (do_split_vert) {
-                unsigned int ans = max_pos_col + 1;
-                std::cout << std::format("#{}: There are {} cols left of optimal split", idx_section, ans) << std::endl;
-                tot_score += ans;
-            }
-            else {
-                unsigned int ans = max_pos_row + 1;
-                std::cout << std::format("#{}: There are {} rows above optimal split", idx_section, ans) << std::endl;
-                tot_score += 100 * ans;
-            }
-        }
-
-
+        std::cout << std::format("AOC13-{}: {}", idx_part, tot_score) << std::endl;
     }
-
-    std::cout << std::format("AOC13-{}: {}", 1, tot_score) << std::endl;
-
 }
 
 void aoc19() {
