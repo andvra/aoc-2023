@@ -1338,6 +1338,99 @@ void aoc13() {
     }
 }
 
+void aoc14() {
+    auto lines = read_file("aoc14_test.txt");
+
+    unsigned int num_rows = lines.size();
+    unsigned int num_cols = lines[0].size();
+    std::vector<unsigned int> cnt_per_row(num_rows, 0);
+    std::vector<unsigned int> best_pos(lines[0].size(), 0);
+    for (int row = 0; row < num_rows; row++) {
+        for (int col = 0; col < num_cols; col++) {
+            auto tile = lines[row][col];
+            switch (tile) {
+            case 'O': cnt_per_row[best_pos[col]]++; best_pos[col]++; break;
+            case '#': best_pos[col] = row + 1; break;
+            }
+        }
+    }
+
+    unsigned int ans = 0;
+    for (unsigned int i = 0; i < num_rows; i++) {
+        auto row_factor = num_rows - i;
+        ans += cnt_per_row[i] * row_factor;
+        std::cout << std::format("Row factor {} has {} elements", row_factor, cnt_per_row[i]) << std::endl;
+    }
+
+    std::cout << std::format("AOC14-{}: {}", 1, ans) << std::endl;
+
+    enum class Move_dir { north, east, south, west };
+    auto move_rocks = [&lines, &num_rows, &num_cols](Move_dir dir) {
+        auto num_best_pos = dir == Move_dir::north || dir == Move_dir::south ? num_cols : num_rows;
+        auto best_pos_val = 0;
+        best_pos_val = dir == Move_dir::south ? num_rows - 1 : best_pos_val;
+        best_pos_val = dir == Move_dir::east ? num_cols - 1 : best_pos_val;
+
+        std::vector<unsigned int> best_pos(num_best_pos, best_pos_val);
+        for (int row = 0; row < num_rows; row++) {
+            for (int col = 0; col < num_cols; col++) {
+                char noop = ' '; // Can be any char, really.
+                char tile = 0;
+                int idx_col = 0;
+                int idx_row = 0;
+                switch (dir) {
+                case Move_dir::north:
+                    tile = lines[row][col];
+                    switch (tile) {
+                    case 'O': lines[best_pos[col]][col] = 'O'; best_pos[col] == row ? noop : lines[row][col] = '.'; best_pos[col]++; break;
+                    case '#': best_pos[col] = row + 1; break;
+                    }
+                    break;
+                case Move_dir::west:
+                    tile = lines[num_rows - row - 1][col];
+                    switch (tile) {
+                    case 'O': lines[num_rows - row - 1][best_pos[row]] = 'O'; best_pos[row] == col ? noop : lines[num_rows - row - 1][col] = '.'; best_pos[row]++; break;
+                    case '#': best_pos[row] = col + 1; break;
+                    }
+                    break;
+                case Move_dir::south:
+                    idx_col = num_cols - col - 1;
+                    idx_row = num_rows - row - 1;
+                    tile = lines[idx_row][idx_col];
+                    switch (tile) {
+                    case 'O': lines[best_pos[idx_col]][idx_col] = 'O'; best_pos[idx_col] == idx_row ? noop : lines[idx_row][idx_col] = '.'; best_pos[idx_col]--; break;
+                    case '#': best_pos[idx_col] = idx_row - 1; break;
+                    }
+                    break;
+                case Move_dir::east:
+                    idx_col = num_cols - col - 1;
+                    tile = lines[row][idx_col];
+                    switch (tile) {
+                    case 'O': lines[row][best_pos[row]] = 'O'; best_pos[row] == idx_col ? noop : lines[row][idx_col] = '.'; best_pos[row]--; break;
+                    case '#': best_pos[row] = idx_col - 1; break;
+                    }
+                    break;
+                }
+            }
+        }
+        };
+
+    // TODO: Kör några iterationer, se om vi ser något återkommande mönster.
+    for (int i = 0; i < 10'000'000; i++) {
+        move_rocks(Move_dir::north);
+        move_rocks(Move_dir::west);
+        move_rocks(Move_dir::south);
+        move_rocks(Move_dir::east);
+    }
+
+    for (auto& line : lines) {
+        for (int i = 0; i < line.size(); i++) {
+            std::cout << line[i];
+        }
+        std::cout << std::endl;
+    }
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2720,7 +2813,8 @@ int main() {
     //aoc09();
     //aoc10();
     //aoc12();
-    aoc13();
+    //aoc13();
+    aoc14();
 	//aoc19();
     //aoc20();
     //aoc21();
