@@ -1415,12 +1415,28 @@ void aoc14() {
         }
         };
 
+    auto calc_score = [&lines]() {
+        unsigned int num_rows = lines.size();
+        unsigned int score = 0;
+        for (unsigned int i = num_rows; i > 0; i--) {
+            unsigned int cnt = 0;
+            for (auto& c : lines[num_rows - i]) {
+                if (c == 'O') {
+                    cnt++;
+                }
+            }
+            score += i * cnt;
+        }
+        return score;
+        };
+
     // TODO: Kör några iterationer, se om vi ser något återkommande mönster.
-    for (int i = 0; i < 10'000'000; i++) {
+    for (int i = 0; i < 1000; i++) {
         move_rocks(Move_dir::north);
         move_rocks(Move_dir::west);
         move_rocks(Move_dir::south);
         move_rocks(Move_dir::east);
+        std::cout << calc_score() << std::endl;
     }
 
     for (auto& line : lines) {
