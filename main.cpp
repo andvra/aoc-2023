@@ -11,7 +11,8 @@
 #include <bitset>
 
 std::vector<std::string> read_file(std::string fn) {
-    std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    //std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    std::string root_dir = R"(C:\Users\andre\source\repos\aoc-2023\input\)";
     fn = root_dir + fn;
     std::ifstream infile(fn);
     std::string line;
@@ -1215,6 +1216,115 @@ void aoc12() {
         std::cout << std::format("AOC12-{}: {}", idx_part, num_arrangements) << std::endl;
     }
 
+}
+
+void aoc13() {
+    auto lines = read_file("aoc13_real.txt");
+
+    struct Line_section {
+        unsigned int idx_start;
+        unsigned int idx_end_excl;
+        std::vector<unsigned int> col_hashes;
+        std::vector<unsigned int> row_hashes;
+    };
+
+    std::vector<Line_section> line_sections = {};
+    unsigned int idx_start = 0;
+    unsigned int idx_end_excl = 0;
+    for (unsigned int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        if (lines[idx_line].empty()) {
+            idx_end_excl = idx_line;
+            line_sections.push_back({ idx_start,idx_end_excl });
+            idx_start = idx_end_excl + 1;
+        }
+    }
+    line_sections.push_back({ idx_start, (unsigned int)lines.size() });
+
+    for (auto& ls : line_sections) {
+        int num_rows = ls.idx_end_excl - ls.idx_start;
+        int num_cols = lines[ls.idx_start].size();
+        ls.row_hashes.resize(num_rows);
+        ls.col_hashes.resize(num_cols);
+        for (int idx_line = ls.idx_start; idx_line < ls.idx_end_excl; idx_line++) {
+            unsigned int val = 0;
+            for (unsigned int idx_char = 0; idx_char < num_cols; idx_char++) {
+                if (lines[idx_line][idx_char] == '#') {
+                    val |= (1u << idx_char);
+                }
+            }
+            ls.row_hashes[idx_line - ls.idx_start] = val;
+        }
+        for (unsigned int col = 0; col < num_cols; col++) {
+            unsigned int val = 0;
+            for (unsigned int idx_line = ls.idx_start; idx_line < ls.idx_end_excl; idx_line++) {
+                if (lines[idx_line][col] == '#') {
+                    auto row = idx_line - ls.idx_start;
+                    val |= (1u << row);
+                }
+            }
+            ls.col_hashes[col] = val;
+        }
+    }
+
+    unsigned int tot_score = 0;
+    for (int idx_section = 0; idx_section < line_sections.size(); idx_section++) {
+        auto& ls = line_sections[idx_section];
+        int num_rows = ls.idx_end_excl - ls.idx_start;
+        int num_cols = lines[ls.idx_start].size();
+        int max_val_col = 0;
+        int max_pos_col = 0;
+        int max_val_row = 0;
+        int max_pos_row = 0;
+        
+        for (int idx_start = 0; idx_start < num_cols - 1; idx_start++) {
+            int idx_end_excl = std::min(idx_start + 1, num_cols - idx_start - 1);
+            int cnt = 0;
+            for (int i = 0; i < idx_end_excl; i++) {
+                if (ls.col_hashes[idx_start - i] == ls.col_hashes[idx_start + i + 1]) {
+                    cnt++;
+                }
+                else {
+                    break;
+                }
+            }
+            if (cnt > max_val_col) {
+                max_val_col = cnt;
+                max_pos_col = idx_start;
+            }
+        }
+        for (int idx_start = 0; idx_start < num_rows - 1; idx_start++) {
+            int idx_end_excl = std::min(idx_start + 1, num_rows - idx_start - 1);
+            int cnt = 0;
+            for (int i = 0; i < idx_end_excl; i++) {
+                if (ls.row_hashes[idx_start - i] == ls.row_hashes[idx_start + i + 1]) {
+                    cnt++;
+                }
+                else {
+                    break;
+                }
+            }
+            if (cnt > max_val_row) {
+                max_val_row = cnt;
+                max_pos_row = idx_start;
+            }
+        }
+
+        bool do_split_vert = max_val_col > max_val_row;
+        if (do_split_vert) {
+            unsigned int ans = max_pos_col + 1;
+            std::cout << std::format("  #{}: There are {} cols left of optimal split", idx_section, ans) << std::endl;
+            tot_score += ans;
+        }
+        else {
+            unsigned int ans = max_pos_row + 1;
+            std::cout << std::format("  #{}: There are {} rows above optimal split", idx_section, ans) << std::endl;
+            tot_score += 100 * ans;
+        }
+    }
+
+
+    std::cout << std::format("AOC13-{}: {}", 1, tot_score) << std::endl;
+    // 31693 is to high
 }
 
 void aoc19() {
@@ -2598,7 +2708,8 @@ int main() {
     //aoc08();
     //aoc09();
     //aoc10();
-    aoc12();
+    //aoc12();
+    aoc13();
 	//aoc19();
     //aoc20();
     //aoc21();
