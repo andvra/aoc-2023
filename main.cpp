@@ -1318,7 +1318,7 @@ void aoc13() {
 
             if (max_val_col > 0 || max_val_row > 0) {
                 if (max_val_col == max_val_row) {
-                    std::cout << "same" << std::endl;
+                    std::cout << "Same" << std::endl;
                 }
                 bool do_split_vert = max_val_col > max_val_row;
                 if (do_split_vert) {
@@ -1339,7 +1339,7 @@ void aoc13() {
 }
 
 void aoc14() {
-    auto lines = read_file("aoc14_test.txt");
+    auto lines = read_file("aoc14_real.txt");
 
     unsigned int num_rows = lines.size();
     unsigned int num_cols = lines[0].size();
@@ -1359,7 +1359,6 @@ void aoc14() {
     for (unsigned int i = 0; i < num_rows; i++) {
         auto row_factor = num_rows - i;
         ans += cnt_per_row[i] * row_factor;
-        std::cout << std::format("Row factor {} has {} elements", row_factor, cnt_per_row[i]) << std::endl;
     }
 
     std::cout << std::format("AOC14-{}: {}", 1, ans) << std::endl;
@@ -1430,21 +1429,49 @@ void aoc14() {
         return score;
         };
 
-    // TODO: Kör några iterationer, se om vi ser något återkommande mönster.
-    for (int i = 0; i < 1000; i++) {
+    size_t max_num_hashes = 100'000;
+    std::vector<size_t> hashes(max_num_hashes);
+    int offset = 0;
+    int interval = 0;
+    bool done = false;
+    for (int i = 0; i < max_num_hashes; i++) {
         move_rocks(Move_dir::north);
         move_rocks(Move_dir::west);
         move_rocks(Move_dir::south);
         move_rocks(Move_dir::east);
-        std::cout << calc_score() << std::endl;
+        std::string s = {};
+        for (auto& line : lines) {
+            s += line;
+        }
+        auto state_hash = std::hash<std::string>{}(s);
+        hashes[i] = state_hash;
+        for (int j = 0; j < i; j++) {
+            if (state_hash == hashes[j]) {
+                offset = j;
+                interval = i - j;
+                done = true;
+                break;
+            }
+        }
+        if (done) {
+            break;
+        }
     }
 
-    for (auto& line : lines) {
-        for (int i = 0; i < line.size(); i++) {
-            std::cout << line[i];
-        }
-        std::cout << std::endl;
+    std::vector<unsigned int> scores(interval);
+    for (int i = 0; i < interval; i++) {
+        scores[i] = calc_score();
+        move_rocks(Move_dir::north);
+        move_rocks(Move_dir::west);
+        move_rocks(Move_dir::south);
+        move_rocks(Move_dir::east);
     }
+
+    unsigned long num_cycles = 1'000'000'000;
+
+    auto s = scores[(num_cycles - offset - 1) % interval];
+
+    std::cout << std::format("AOC14-{}: {}", 2, s) << std::endl;
 }
 
 void aoc19() {
