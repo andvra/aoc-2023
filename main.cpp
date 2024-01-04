@@ -12,7 +12,7 @@
 
 std::vector<std::string> read_file(std::string fn) {
     //std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
-    std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
     fn = root_dir + fn;
     std::ifstream infile(fn);
     std::string line;
@@ -1497,6 +1497,83 @@ void aoc15() {
     }
 
     std::cout << std::format("AOC15-{}: {}", 1, tot_score) << std::endl;
+
+    struct Node {
+        std::string label;
+        unsigned int focal_length;
+        Node* prev;
+        Node* next;
+    };
+
+    std::vector<Node> root_nodes(256);
+    for (int i = 0; i < 256; i++) {
+        std::string label = "Box" + std::to_string(i);
+        root_nodes[i] = { label,0,nullptr,nullptr };
+    }
+
+    std::vector<Node> other_nodes(10000);
+
+    cur_score = 0;
+    std::string label = {};
+    int next_node = 0;
+    for (int i = 0; i < lines[0].size(); i++) {
+        char c = lines[0][i];
+        if (c == ',') {
+            cur_score = 0;
+            label = {};
+        }
+        else if (c == '-') {
+            auto node = &root_nodes[cur_score];
+            while (node->label != label && node->next != nullptr) {
+                node = node->next;
+            }
+            if (node->label == label) {
+                if (node->next != nullptr) {
+                    node->next->prev = node->prev;
+                    node->prev->next = node->next;
+                }
+                else {
+                    if (node->prev != nullptr) {
+                        node->prev->next = nullptr;
+                    }
+                }
+            }
+        }
+        else if (c == '=') {
+            auto focal_length = ((unsigned int)lines[0][i + 1]) - '0';
+            auto node = &root_nodes[cur_score];
+            while (node->label != label && node->next != nullptr) {
+                node = node->next;
+            }
+            if (node->label == label) {
+                node->focal_length = focal_length;
+            }
+            else {
+                other_nodes[next_node++] = { label,focal_length,node,nullptr };
+                node->next = &other_nodes[next_node - 1];
+            }
+        }
+        else {
+            label += c;
+            cur_score += (unsigned int)c;
+            cur_score *= 17;
+            cur_score = cur_score % 256;
+        }
+    }
+
+    tot_score = 0;
+    for (unsigned int idx_box = 0; idx_box < 256; idx_box++) {
+        Node* node = &root_nodes[idx_box];
+        unsigned int idx_slot = 1;
+        unsigned int added_score = 0;
+        while (node->next != nullptr) {
+            node = node->next;
+            added_score = (idx_box + 1) * (idx_slot++) * node->focal_length;
+            tot_score += added_score;
+        }
+    }
+
+    std::cout << std::format("AOC15-{}: {}", 2, tot_score) << std::endl;
 }
 
 void aoc19() {
