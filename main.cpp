@@ -1474,6 +1474,31 @@ void aoc14() {
     std::cout << std::format("AOC14-{}: {}", 2, s) << std::endl;
 }
 
+void aoc15() {
+    auto lines = read_file("aoc15_real.txt");
+
+    unsigned int cnt = 0;
+    unsigned int tot_score = 0;
+    unsigned int cur_score = 0;
+    lines[0] += ",";
+
+    for (int i = 0; i < lines[0].size(); i++) {
+        char c = lines[0][i];
+        if (c == ',') {
+            tot_score += cur_score;
+            cnt++;
+            cur_score = 0;
+        }
+        else {
+            cur_score += (unsigned int)c;
+            cur_score *= 17;
+            cur_score = cur_score % 256;
+        }
+    }
+
+    std::cout << std::format("AOC15-{}: {}", 1, tot_score) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2857,7 +2882,8 @@ int main() {
     //aoc10();
     //aoc12();
     //aoc13();
-    aoc14();
+    //aoc14();
+    aoc15();
 	//aoc19();
     //aoc20();
     //aoc21();
