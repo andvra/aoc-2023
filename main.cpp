@@ -11,8 +11,8 @@
 #include <bitset>
 
 std::vector<std::string> read_file(std::string fn) {
-    //std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
-    std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
+    std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    //std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
     fn = root_dir + fn;
     std::ifstream infile(fn);
     std::string line;
@@ -1730,6 +1730,115 @@ void aoc16() {
     std::cout << std::format("AOC16-{}: {}", 2, max_num_visited) << std::endl;
 }
 
+void aoc17() {
+    auto lines = read_file("aoc17_test.txt");
+
+    struct Tile {
+        unsigned int val;
+    };
+
+    int num_rows = lines.size();
+    int num_cols = lines[0].size();
+    std::vector<std::vector<Tile>> tiles(num_rows, std::vector<Tile>(num_cols));
+
+    for (int row = 0; row < num_rows; row++) {
+        for (int col = 0; col < num_cols; col++) {
+            unsigned int val = lines[row][col] - '0';
+            tiles[row][col] = { val };
+        }
+    }
+
+    struct Node {
+        unsigned int row;
+        unsigned int col;
+        unsigned int last_three;
+        unsigned int val;
+        unsigned int steps;
+        Node* prev;
+    };
+
+    struct Node_diff {
+        int row_d;
+        int col_d;
+        unsigned int bit;
+    };
+
+    int max_nodes = 100000000;
+    int num_nodes = 0;
+    bool done = false;
+    std::vector<Node> nodes(max_nodes);
+    nodes[num_nodes++] = { 0, 0, 0, 0, 0, nullptr };
+    
+    int idx_start = 0;
+    int idx_end_exclusive = num_nodes;
+    while (!done) {
+        auto num_nodes_before = num_nodes;
+        for (int idx_node = idx_start; idx_node < idx_end_exclusive; idx_node++) {
+            auto& node = nodes[idx_node];
+            if (node.row == num_rows - 1 && node.col == num_cols - 1) {
+                done = true;
+                std::cout << "Reached the goal" << std::endl;
+                break;
+            }
+            bool can_move_vert = node.steps < 3 || (node.last_three != 7); // 5 = 0x111 = moved down for three consecutive steps
+            bool can_move_hor = node.steps < 3 || (node.last_three != 0);
+            std::vector<Node_diff> node_diffs = {};
+            if (can_move_vert) {
+                bool can_move_down = true;
+                bool can_move_up = true;
+                Node* prev = node.prev;
+                while (prev != nullptr) {
+                    if (prev->row == node.row - 1 && prev->col == node.col) {
+                        can_move_up = false;
+                    }
+                    if (prev->row == node.row + 1 && prev->col == node.col) {
+                        can_move_down = false;
+                    }
+                    prev = prev->prev;
+                }
+                if (can_move_up && node.row > 0) {
+                    node_diffs.push_back({ -1,0,1 });
+                }
+                if (can_move_down && node.row + 1 < num_rows) {
+                    node_diffs.push_back({ 1,0,1 });
+                }
+            }
+            if (can_move_hor) {
+                bool can_move_left = true;
+                bool can_move_right = true;
+                Node* prev = node.prev;
+                while (prev != nullptr) {
+                    if (prev->col == node.col - 1 && prev->row == node.row) {
+                        can_move_left = false;
+                    }
+                    if (prev->col == node.col + 1 && prev->row == node.row) {
+                        can_move_right = false;
+                    }
+                    prev = prev->prev;
+                }
+                if (can_move_left && node.col > 0) {
+                    node_diffs.push_back({ 0,-1,0 });
+                }
+                if (can_move_right && node.col + 1 < num_cols) {
+                    node_diffs.push_back({ 0,1,0 });
+                }
+            }
+            for (auto& diff : node_diffs) {
+                auto row = node.row + diff.row_d;
+                auto col = node.col + diff.col_d;
+                nodes[num_nodes++] = { row, col, ((node.last_three << 1u) & 0b111) | diff.bit, node.val + tiles[row][col].val, node.steps + 1, &node };
+            }
+        }
+        idx_start = idx_end_exclusive;
+        idx_end_exclusive = num_nodes;
+        if (num_nodes == num_nodes_before) {
+            done = true;
+        }
+    }
+
+    std::cout << std::format("AOC17-{}: {}", 1, 123) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -3115,7 +3224,8 @@ int main() {
     //aoc13();
     //aoc14();
     //aoc15();
-    aoc16();
+    //aoc16();
+    aoc17();
 	//aoc19();
     //aoc20();
     //aoc21();
