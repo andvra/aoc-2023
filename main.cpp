@@ -1576,6 +1576,153 @@ void aoc15() {
     std::cout << std::format("AOC15-{}: {}", 2, tot_score) << std::endl;
 }
 
+void aoc16() {
+    auto lines = read_file("aoc16_real.txt");
+
+    struct Tile {
+        char type;
+        bool hit_from_left;
+        bool hit_from_right;
+        bool hit_from_above;
+        bool hit_from_below;
+    };
+
+    int num_rows = lines.size();
+    int num_cols = lines[0].size();
+    std::vector<std::vector<Tile>> tiles(num_rows, std::vector<Tile>(num_cols));
+
+    for (int row = 0; row < num_rows; row++) {
+        for (int col = 0; col < num_cols; col++) {
+            char c = lines[row][col];
+            tiles[row][col] = { c,false,false,false,false };
+        }
+    }
+
+    struct Beam {
+        int row;
+        int col;
+        int row_d;
+        int col_d;
+        bool alive;
+    };
+
+    auto simulate = [&num_rows, &num_cols](std::vector<std::vector<Tile>>& tiles, Beam start_beam) {
+        auto r = tiles.size();
+        auto c = tiles[0].size();
+        // Cleaning up is faster than copying tiles each iteration
+        for (int i = 0; i < r; i++) {
+            for (int j = 0; j < c; j++) {
+                tiles[i][j].hit_from_above = false;
+                tiles[i][j].hit_from_below = false;
+                tiles[i][j].hit_from_left = false;
+                tiles[i][j].hit_from_right = false;
+            }
+        }
+        std::vector<std::vector<bool>> visited(num_rows, std::vector<bool>(num_cols, false));
+        int max_beams = 800;
+        std::vector<Beam> beams(max_beams);
+        int num_beams = 0;
+        beams[num_beams++] = start_beam;
+        int num_alive = 1;
+
+        while (num_alive > 0) {
+            for (int idx_beam = 0; idx_beam < num_beams; idx_beam++) {
+                auto& beam = beams[idx_beam];
+                if (beam.alive) {
+                    if (beam.row < 0 || beam.row >= num_rows || beam.col < 0 || beam.col >= num_cols) {
+                        beam.alive = false;
+                        num_alive--;
+                    }
+                    if (beam.alive) {
+                        visited[beam.row][beam.col] = true;
+                        int row = beam.row;
+                        int col = beam.col;
+                        bool moving_left = beam.col_d < 0;
+                        bool moving_right = beam.col_d > 0;
+                        bool moving_up = beam.row_d < 0;
+                        bool moving_down = beam.row_d > 0;
+                        Tile& tile = tiles[row][col];
+                        bool cycling = false;
+                        if (
+                            (tile.hit_from_above && moving_down) ||
+                            (tile.hit_from_below && moving_up) ||
+                            (tile.hit_from_right && moving_left) ||
+                            (tile.hit_from_left && moving_right))
+                        {
+                            cycling = true;
+                            beam.alive = false;
+                            num_alive--;
+                        }
+                        if (!cycling) {
+                            auto cur_row_d = beam.row_d;
+                            auto cur_col_d = beam.col_d;
+                            tile.hit_from_above = moving_down;
+                            tile.hit_from_below = moving_up;
+                            tile.hit_from_left = moving_right;
+                            tile.hit_from_right = moving_left;
+                            switch (tile.type) {
+                            case '/':  beam.col_d = -cur_row_d; beam.row_d = -cur_col_d; break;
+                            case '\\': beam.col_d = cur_row_d; beam.row_d = cur_col_d; break;
+                            case '|':
+                                if (moving_left || moving_right) {
+                                    beams[num_beams++] = { row,col,1,0, true };
+                                    beams[num_beams++] = { row,col,-1,0, true };
+                                    num_alive += 1;
+                                    beam.alive = false;
+                                }
+                                break;
+                            case '-':
+                                if (moving_up || moving_down) {
+                                    beams[num_beams++] = { row,col,0,1, true };
+                                    beams[num_beams++] = { row,col,0,-1, true };
+                                    num_alive += 1;
+                                    beam.alive = false;
+                                }
+                                break;
+                            }
+                        }
+                        beam.row += beam.row_d;
+                        beam.col += beam.col_d;
+                    }
+                }
+            }
+        }
+
+        int num_visited = 0;
+        for (auto& r : visited) {
+            for (auto b : r) {
+                if (b) {
+                    num_visited++;
+                }
+            }
+        }
+
+        return num_visited;
+    };
+    
+    Beam beam = { 0,0,0,1, true };
+    auto num_visited = simulate(tiles, beam);
+    std::cout << std::format("AOC16-{}: {}", 1, num_visited) << std::endl;
+
+    int max_num_visited = 0;
+    for (int i = 0; i < num_rows; i++) {
+        Beam b1 = { i,0,0,1,true };
+        Beam b2 = { i,num_cols - 1,0,-1,true };
+        auto cur_num_visited = simulate(tiles, b1);
+        cur_num_visited = std::max(cur_num_visited, simulate(tiles, b2));
+        max_num_visited = std::max(max_num_visited, cur_num_visited);
+    }
+    for (int i = 0; i < num_cols; i++) {
+        Beam b1 = { 0,i,1,0,true };
+        Beam b2 = { num_rows - 1,i,-1,0,true };
+        auto cur_num_visited = simulate(tiles, b1);
+        cur_num_visited = std::max(cur_num_visited, simulate(tiles, b2));
+        max_num_visited = std::max(max_num_visited, cur_num_visited);
+    }
+
+    std::cout << std::format("AOC16-{}: {}", 2, max_num_visited) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -2960,7 +3107,8 @@ int main() {
     //aoc12();
     //aoc13();
     //aoc14();
-    aoc15();
+    //aoc15();
+    aoc16();
 	//aoc19();
     //aoc20();
     //aoc21();
