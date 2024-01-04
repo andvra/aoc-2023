@@ -1700,25 +1700,32 @@ void aoc16() {
         return num_visited;
     };
     
+    auto best_simulation = [&simulate](std::vector<std::vector<Tile>>* tiles, std::vector<Beam> start_beams) {
+        int max_num_visited = 0;
+        for (auto& b : start_beams) {
+            auto s = simulate(*tiles, b);
+            max_num_visited = s > max_num_visited ? s : max_num_visited;
+        }
+        return max_num_visited;
+        };
+
+
     Beam beam = { 0,0,0,1, true };
-    auto num_visited = simulate(tiles, beam);
+    auto num_visited = best_simulation(&tiles, { beam });
     std::cout << std::format("AOC16-{}: {}", 1, num_visited) << std::endl;
 
-    int max_num_visited = 0;
+    std::vector<Beam> beams(2 * num_rows + 2 * num_cols);
+    int idx_beam = 0;
     for (int i = 0; i < num_rows; i++) {
-        Beam b1 = { i,0,0,1,true };
-        Beam b2 = { i,num_cols - 1,0,-1,true };
-        auto cur_num_visited = simulate(tiles, b1);
-        cur_num_visited = std::max(cur_num_visited, simulate(tiles, b2));
-        max_num_visited = std::max(max_num_visited, cur_num_visited);
+        beams[idx_beam++] = { i,0,0,1,true };
+        beams[idx_beam++] = { i,num_cols - 1,0,-1,true };
     }
     for (int i = 0; i < num_cols; i++) {
-        Beam b1 = { 0,i,1,0,true };
-        Beam b2 = { num_rows - 1,i,-1,0,true };
-        auto cur_num_visited = simulate(tiles, b1);
-        cur_num_visited = std::max(cur_num_visited, simulate(tiles, b2));
-        max_num_visited = std::max(max_num_visited, cur_num_visited);
+        beams[idx_beam++] = { 0,i,1,0,true };
+        beams[idx_beam++] = { num_rows - 1,i,-1,0,true };
     }
+
+    int max_num_visited = best_simulation(&tiles, beams);
 
     std::cout << std::format("AOC16-{}: {}", 2, max_num_visited) << std::endl;
 }
