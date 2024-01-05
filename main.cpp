@@ -1731,7 +1731,7 @@ void aoc16() {
 }
 
 void aoc17() {
-    auto lines = read_file("aoc17_test.txt");
+    auto lines = read_file("aoc17_real.txt");
 
     struct Tile {
         unsigned int val;
@@ -1763,22 +1763,40 @@ void aoc17() {
         unsigned int bit;
     };
 
+    // Depends on where you are coming from when you visit this tile
+    std::vector<std::vector<std::vector<unsigned int>>> visited(num_rows, std::vector<std::vector<unsigned int>>(num_cols, std::vector<unsigned int>(8, 10000000)));
+
     int max_nodes = 100000000;
     int num_nodes = 0;
     bool done = false;
     std::vector<Node> nodes(max_nodes);
+    std::cout << "Done allocating memory" << std::endl;
     nodes[num_nodes++] = { 0, 0, 0, 0, 0, nullptr };
     
     int idx_start = 0;
     int idx_end_exclusive = num_nodes;
+    unsigned int best_score = 10000000;
     while (!done) {
         auto num_nodes_before = num_nodes;
         for (int idx_node = idx_start; idx_node < idx_end_exclusive; idx_node++) {
             auto& node = nodes[idx_node];
-            if (node.row == num_rows - 1 && node.col == num_cols - 1) {
-                done = true;
-                std::cout << "Reached the goal" << std::endl;
-                break;
+            if ((node.row == num_rows - 1) && (node.col == num_cols - 1)) {
+                if (node.val < best_score) {
+                    //std::cout << "Reached the goal. Score: " << node.val << std::endl;
+                    //std::vector<std::vector<char>> x(num_rows, std::vector<char>(num_cols, '.'));
+                    //Node* n = &node;
+                    //while (n != nullptr) {
+                    //    x[n->row][n->col] = '#';
+                    //    n = n->prev;
+                    //}
+                    //for (int row = 0; row < num_rows; row++) {
+                    //    for (int col = 0; col < num_cols; col++) {
+                    //        std::cout << x[row][col];
+                    //    }
+                    //    std::cout << std::endl;
+                    //}
+                    best_score = node.val;
+                }
             }
             bool can_move_vert = node.steps < 3 || (node.last_three != 7); // 5 = 0x111 = moved down for three consecutive steps
             bool can_move_hor = node.steps < 3 || (node.last_three != 0);
@@ -1786,16 +1804,6 @@ void aoc17() {
             if (can_move_vert) {
                 bool can_move_down = true;
                 bool can_move_up = true;
-                Node* prev = node.prev;
-                while (prev != nullptr) {
-                    if (prev->row == node.row - 1 && prev->col == node.col) {
-                        can_move_up = false;
-                    }
-                    if (prev->row == node.row + 1 && prev->col == node.col) {
-                        can_move_down = false;
-                    }
-                    prev = prev->prev;
-                }
                 if (can_move_up && node.row > 0) {
                     node_diffs.push_back({ -1,0,1 });
                 }
@@ -1806,16 +1814,6 @@ void aoc17() {
             if (can_move_hor) {
                 bool can_move_left = true;
                 bool can_move_right = true;
-                Node* prev = node.prev;
-                while (prev != nullptr) {
-                    if (prev->col == node.col - 1 && prev->row == node.row) {
-                        can_move_left = false;
-                    }
-                    if (prev->col == node.col + 1 && prev->row == node.row) {
-                        can_move_right = false;
-                    }
-                    prev = prev->prev;
-                }
                 if (can_move_left && node.col > 0) {
                     node_diffs.push_back({ 0,-1,0 });
                 }
@@ -1826,7 +1824,13 @@ void aoc17() {
             for (auto& diff : node_diffs) {
                 auto row = node.row + diff.row_d;
                 auto col = node.col + diff.col_d;
-                nodes[num_nodes++] = { row, col, ((node.last_three << 1u) & 0b111) | diff.bit, node.val + tiles[row][col].val, node.steps + 1, &node };
+                auto val = node.val + tiles[row][col].val;
+                auto move_bit = ((node.last_three << 1u) & 0b111) | diff.bit;
+                bool moving_back = (node.prev != nullptr) && (row == node.prev->row && col == node.prev->col);
+                if (!moving_back && visited[row][col][move_bit] > val) {
+                    nodes[num_nodes++] = { row, col, move_bit, val, node.steps + 1, &node };
+                    visited[row][col][move_bit] = val;
+                }
             }
         }
         idx_start = idx_end_exclusive;
@@ -1836,7 +1840,7 @@ void aoc17() {
         }
     }
 
-    std::cout << std::format("AOC17-{}: {}", 1, 123) << std::endl;
+    std::cout << std::format("AOC17-{}: {}", 1, best_score) << std::endl;
 }
 
 void aoc19() {
