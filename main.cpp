@@ -11,8 +11,8 @@
 #include <bitset>
 
 std::vector<std::string> read_file(std::string fn) {
-    std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
-    //std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
+    //std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
     fn = root_dir + fn;
     std::ifstream infile(fn);
     std::string line;
@@ -1731,7 +1731,7 @@ void aoc16() {
 }
 
 void aoc17() {
-    auto lines = read_file("aoc17_real.txt");
+    auto lines = read_file("aoc17_test.txt");
 
     struct Tile {
         unsigned int val;
@@ -1751,7 +1751,7 @@ void aoc17() {
     struct Node {
         unsigned int row;
         unsigned int col;
-        unsigned int last_three;
+        unsigned int last_moves;
         unsigned int val;
         unsigned int steps;
         Node* prev;
@@ -1763,84 +1763,121 @@ void aoc17() {
         unsigned int bit;
     };
 
-    // Depends on where you are coming from when you visit this tile
-    std::vector<std::vector<std::vector<unsigned int>>> visited(num_rows, std::vector<std::vector<unsigned int>>(num_cols, std::vector<unsigned int>(8, 10000000)));
-
-    int max_nodes = 100000000;
-    int num_nodes = 0;
-    bool done = false;
+    int max_nodes = 100'000'000;
     std::vector<Node> nodes(max_nodes);
     std::cout << "Done allocating memory" << std::endl;
-    nodes[num_nodes++] = { 0, 0, 0, 0, 0, nullptr };
-    
-    int idx_start = 0;
-    int idx_end_exclusive = num_nodes;
-    unsigned int best_score = 10000000;
-    while (!done) {
-        auto num_nodes_before = num_nodes;
-        for (int idx_node = idx_start; idx_node < idx_end_exclusive; idx_node++) {
-            auto& node = nodes[idx_node];
-            if ((node.row == num_rows - 1) && (node.col == num_cols - 1)) {
-                if (node.val < best_score) {
-                    //std::cout << "Reached the goal. Score: " << node.val << std::endl;
-                    //std::vector<std::vector<char>> x(num_rows, std::vector<char>(num_cols, '.'));
-                    //Node* n = &node;
-                    //while (n != nullptr) {
-                    //    x[n->row][n->col] = '#';
-                    //    n = n->prev;
-                    //}
-                    //for (int row = 0; row < num_rows; row++) {
-                    //    for (int col = 0; col < num_cols; col++) {
-                    //        std::cout << x[row][col];
+
+    for (int idx_part = 1; idx_part < 3; idx_part++) {
+        unsigned int min_moves = idx_part == 1 ? 1 : 4;
+        unsigned int max_moves = idx_part == 1 ? 3 : 10;
+        unsigned int max_move_mask = 0;
+        unsigned int min_move_mask = 0;
+
+        for (unsigned int i = 0; i < max_moves; i++) {
+            max_move_mask |= 1 << i;
+        }
+
+        for (unsigned int i = 0; i < min_moves; i++) {
+            min_move_mask |= 1 << i;
+        }
+
+        // Depends on where you are coming from when you visit this tile
+        std::vector<std::vector<std::vector<unsigned int>>> visited(num_rows, std::vector<std::vector<unsigned int>>(num_cols, std::vector<unsigned int>(1 << max_moves, 10000000)));
+
+        int num_nodes = 0;
+        bool done = false;
+        nodes[num_nodes++] = { 0, 0, 0, 0, 0, nullptr };
+
+        int idx_start = 0;
+        int idx_end_exclusive = num_nodes;
+        unsigned int best_score = 10000000;
+        while (!done) {
+            auto num_nodes_before = num_nodes;
+            for (int idx_node = idx_start; idx_node < idx_end_exclusive; idx_node++) {
+                auto& node = nodes[idx_node];
+                bool straight_line = ((node.last_moves & min_move_mask) == min_move_mask)
+                    || ((node.last_moves & min_move_mask) == 0);
+                if (straight_line && (node.row == num_rows - 1) && (node.col == num_cols - 1)) {
+                    if (node.val < best_score) {
+                        //std::cout << "Reached the goal. Score: " << node.val << std::endl;
+                        //std::vector<std::vector<char>> x(num_rows, std::vector<char>(num_cols, '.'));
+                        //Node* n = &node;
+                        //while (n != nullptr) {
+                        //    x[n->row][n->col] = '#';
+                        //    n = n->prev;
+                        //}
+                        //for (int row = 0; row < num_rows; row++) {
+                        //    for (int col = 0; col < num_cols; col++) {
+                        //        std::cout << x[row][col];
+                        //    }
+                        //    std::cout << std::endl;
+                        //}
+                        best_score = node.val;
+                    }
+                }
+                bool can_move_vert = (node.steps < 1)
+                    || (((node.last_moves & 0b1) == 0b1) && ((node.steps < max_moves) || ((node.last_moves & max_move_mask) != max_move_mask)))
+                    || (((node.steps >= min_moves) && (node.last_moves & min_move_mask) == 0));
+                bool can_move_hor = (node.steps < 1)
+                    || (((node.last_moves & 0b1) == 0b0) && ((node.steps < max_moves) || ((node.last_moves & max_move_mask) != 0)))
+                    || (((node.steps >= min_moves) && (node.last_moves & min_move_mask) == min_move_mask));
+                std::vector<Node_diff> node_diffs = {};
+                if (can_move_vert) {
+                    bool can_move_down = true;
+                    bool can_move_up = true;
+                    if (can_move_up && node.row > 0) {
+                        node_diffs.push_back({ -1,0,1 });
+                    }
+                    if (can_move_down && node.row + 1 < num_rows) {
+                        node_diffs.push_back({ 1,0,1 });
+                    }
+                }
+                if (can_move_hor) {
+                    bool can_move_left = true;
+                    bool can_move_right = true;
+                    if (can_move_left && node.col > 0) {
+                        node_diffs.push_back({ 0,-1,0 });
+                    }
+                    if (can_move_right && node.col + 1 < num_cols) {
+                        node_diffs.push_back({ 0,1,0 });
+                    }
+                }
+                for (auto& diff : node_diffs) {
+                    auto row = node.row + diff.row_d;
+                    auto col = node.col + diff.col_d;
+                    //Node* prev = node.prev;
+                    //bool is_cycling = false;
+                    //while (prev != nullptr) {
+                    //    if (prev->row == row && prev->col == col) {
+                    //        is_cycling = true;
+                    //        break;
                     //    }
-                    //    std::cout << std::endl;
+                    //    prev = prev->prev;
                     //}
-                    best_score = node.val;
+                    //if (is_cycling) {
+                    //    continue;
+                    //}
+                    auto val = node.val + tiles[row][col].val;
+                    auto move_bit = ((node.last_moves << 1u) & max_move_mask) | diff.bit;
+                    bool moving_back = (node.prev != nullptr) && (row == node.prev->row && col == node.prev->col);
+                    if (val < best_score && !moving_back && visited[row][col][move_bit] > val) {
+                        nodes[num_nodes++] = { row, col, move_bit, val, node.steps + 1, &node };
+                        visited[row][col][move_bit] = val;
+                    }
                 }
             }
-            bool can_move_vert = node.steps < 3 || (node.last_three != 7); // 5 = 0x111 = moved down for three consecutive steps
-            bool can_move_hor = node.steps < 3 || (node.last_three != 0);
-            std::vector<Node_diff> node_diffs = {};
-            if (can_move_vert) {
-                bool can_move_down = true;
-                bool can_move_up = true;
-                if (can_move_up && node.row > 0) {
-                    node_diffs.push_back({ -1,0,1 });
-                }
-                if (can_move_down && node.row + 1 < num_rows) {
-                    node_diffs.push_back({ 1,0,1 });
-                }
-            }
-            if (can_move_hor) {
-                bool can_move_left = true;
-                bool can_move_right = true;
-                if (can_move_left && node.col > 0) {
-                    node_diffs.push_back({ 0,-1,0 });
-                }
-                if (can_move_right && node.col + 1 < num_cols) {
-                    node_diffs.push_back({ 0,1,0 });
-                }
-            }
-            for (auto& diff : node_diffs) {
-                auto row = node.row + diff.row_d;
-                auto col = node.col + diff.col_d;
-                auto val = node.val + tiles[row][col].val;
-                auto move_bit = ((node.last_three << 1u) & 0b111) | diff.bit;
-                bool moving_back = (node.prev != nullptr) && (row == node.prev->row && col == node.prev->col);
-                if (!moving_back && visited[row][col][move_bit] > val) {
-                    nodes[num_nodes++] = { row, col, move_bit, val, node.steps + 1, &node };
-                    visited[row][col][move_bit] = val;
-                }
+            idx_start = idx_end_exclusive;
+            idx_end_exclusive = num_nodes;
+            if (num_nodes == num_nodes_before) {
+                done = true;
             }
         }
-        idx_start = idx_end_exclusive;
-        idx_end_exclusive = num_nodes;
-        if (num_nodes == num_nodes_before) {
-            done = true;
-        }
+
+        std::cout << "Num. nodes used: " << num_nodes << std::endl;
+        std::cout << std::format("AOC17-{}: {}", idx_part, best_score) << std::endl;
     }
 
-    std::cout << std::format("AOC17-{}: {}", 1, best_score) << std::endl;
+    // 1181 too high for pt2
 }
 
 void aoc19() {
