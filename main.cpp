@@ -1880,6 +1880,123 @@ void aoc17() {
     // 1181 too high for pt2
 }
 
+void aoc18() {
+    auto lines = read_file("aoc18_test.txt");
+
+    struct Plan_part {
+        int vert;
+        int hor;
+        unsigned int cnt;
+        unsigned int color;
+        int start_x;
+        int start_y;
+        int end_x;
+        int end_y;
+    };
+
+    std::vector<Plan_part> plan_parts(lines.size());
+
+    auto hex2uint = [](std::string hex) {
+        unsigned int ret = 0;
+
+        for (unsigned int i = 0; i < hex.size(); i++) {
+            int n = hex[i] - '0';
+            if (n > 9) {
+                n = (hex[i] - 'a') + 10;
+            }
+            ret |= n << ((5u - i) * 4u);
+        }
+
+        return ret;
+        };
+
+    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+        auto& line = lines[idx_line];
+        auto lines_parts = split_string(line, " ");
+        Plan_part part = {};
+        switch (lines_parts[0][0]) {
+        case 'U': part.vert = -1; part.hor = 0; break;
+        case 'R': part.vert = 0; part.hor = 1; break;
+        case 'D': part.vert = 1; part.hor = 0; break;
+        case 'L': part.vert = 0; part.hor = -1; break;
+        }
+        part.cnt = std::atoi(lines_parts[1].c_str());
+        part.color = hex2uint(lines_parts[2].substr(2, 6));
+        plan_parts[idx_line] = part;
+    }
+    /*
+
+    #################
+    #...............#
+    #.##...########.#
+    #.##...#......#.#
+    #.##...#......#.#
+    #.######......###
+    #.#..............
+    #.######......###
+    #.##...#......#.#
+    #.##...########.#
+    #...............#
+    #################
+    */
+
+    int min_x = 10000000;
+    int max_x = -1000000;
+    int min_y = 10000000;
+    int max_y = -1000000;
+    int cur_x = 0;
+    int cur_y = 0;
+
+    for (auto& part : plan_parts) {
+        part.start_x = cur_x;
+        part.start_y = cur_y;
+        cur_x += part.hor * part.cnt;
+        cur_y += part.vert * part.cnt;
+        part.end_x = cur_x;
+        part.end_y = cur_y;
+        min_x = cur_x < min_x ? cur_x : min_x;
+        min_y = cur_y < min_y ? cur_y : min_y;
+        max_x = cur_x > max_x ? cur_x : max_x;
+        max_y = cur_y > max_y ? cur_y : max_y;
+    }
+
+    for (auto& part : plan_parts) {
+        part.start_x -= min_x;
+        part.start_y -= min_y;
+        part.end_x -= min_x;
+        part.end_y -= min_y;
+    }
+
+    max_x -= min_x;
+    max_y -= min_y;
+    min_x = 0;
+    min_y = 0;
+
+    unsigned int w = max_x + 1;
+    unsigned int h = max_y + 1;
+
+    std::vector<std::vector<char>> output(h, std::vector<char>(w, '.'));
+
+    for (auto& p : plan_parts) {
+        for (int i = 0; i < p.cnt; i++) {
+            output[p.start_y + p.vert * i][p.start_x + p.hor * i] = '#';
+        }
+    }
+
+
+
+
+    for (int row = 0; row < output.size(); row++) {
+        std::cout << row << ": ";
+        for (auto c : output[row]) {
+            std::cout << c;
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << std::format("AOC18-{}: {}", 1, 123) << std::endl;
+}
+
 void aoc19() {
     bool is_rules = true;
     auto lines = read_file("aoc19_real.txt");
@@ -3266,7 +3383,8 @@ int main() {
     //aoc14();
     //aoc15();
     //aoc16();
-    aoc17();
+    //aoc17();
+    aoc18();
 	//aoc19();
     //aoc20();
     //aoc21();
