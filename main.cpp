@@ -1887,7 +1887,6 @@ void aoc18() {
         int vert;
         int hor;
         unsigned int cnt;
-        unsigned int color;
         int start_x;
         int start_y;
         int end_x;
@@ -1898,132 +1897,138 @@ void aoc18() {
 
     auto hex2uint = [](std::string hex) {
         unsigned int ret = 0;
-
-        for (unsigned int i = 0; i < hex.size(); i++) {
+        unsigned int hex_len = hex.size();
+        for (unsigned int i = 0; i < hex_len; i++) {
             int n = hex[i] - '0';
             if (n > 9) {
                 n = (hex[i] - 'a') + 10;
             }
-            ret |= n << ((5u - i) * 4u);
+            ret |= n << ((hex_len - i - 1) * 4u);
         }
 
         return ret;
         };
 
-    for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
-        auto& line = lines[idx_line];
-        auto lines_parts = split_string(line, " ");
-        Plan_part part = {};
-        switch (lines_parts[0][0]) {
-        case 'U': part.vert = -1; part.hor = 0; break;
-        case 'R': part.vert = 0; part.hor = 1; break;
-        case 'D': part.vert = 1; part.hor = 0; break;
-        case 'L': part.vert = 0; part.hor = -1; break;
-        }
-        part.cnt = std::atoi(lines_parts[1].c_str());
-        part.color = hex2uint(lines_parts[2].substr(2, 6));
-        plan_parts[idx_line] = part;
-    }
-
-    int min_x = 10000000;
-    int max_x = -1000000;
-    int min_y = 10000000;
-    int max_y = -1000000;
-    int cur_x = 0;
-    int cur_y = 0;
-
-    for (auto& part : plan_parts) {
-        part.start_x = cur_x;
-        part.start_y = cur_y;
-        cur_x += part.hor * part.cnt;
-        cur_y += part.vert * part.cnt;
-        part.end_x = cur_x;
-        part.end_y = cur_y;
-        min_x = cur_x < min_x ? cur_x : min_x;
-        min_y = cur_y < min_y ? cur_y : min_y;
-        max_x = cur_x > max_x ? cur_x : max_x;
-        max_y = cur_y > max_y ? cur_y : max_y;
-    }
-
-    for (auto& part : plan_parts) {
-        part.start_x -= min_x;
-        part.start_y -= min_y;
-        part.end_x -= min_x;
-        part.end_y -= min_y;
-    }
-
-    max_x -= min_x;
-    max_y -= min_y;
-    min_x = 0;
-    min_y = 0;
-
-    unsigned int w = max_x + 1;
-    unsigned int h = max_y + 1;
-
-    std::vector<std::vector<char>> output(h, std::vector<char>(w, '.'));
-    std::vector<std::vector<bool>> is_crossing(h, std::vector<bool>(w, false));
-
-    for (int idx_part = 0; idx_part < plan_parts.size(); idx_part++) {
-        auto& p = plan_parts[idx_part];
-        for (int i = 0; i < p.cnt; i++) {
-            output[p.start_y + p.vert * i][p.start_x + p.hor * i] = '#';
-        }
-        auto idx_prev = (idx_part + plan_parts.size() - 1) % plan_parts.size();
-        auto idx_next = (idx_part + plan_parts.size() + 1) % plan_parts.size();
-        auto& p_prev = plan_parts[idx_prev];
-        auto& p_next = plan_parts[idx_next];
-        if (p.vert == 0 && (p_prev.vert != 0 && p_next.vert != 0) && (p_prev.vert == p_next.vert)) {
-            auto p_max_x = p.start_x > p.end_x ? p.start_x : p.end_x;
-            is_crossing[p.start_y][p_max_x] = true;
-        }
-        if (p.vert != 0) {
-            for (int i = 1; i < p.cnt; i++) {
-                is_crossing[p.start_y + p.vert * i][p.start_x] = true;
+    for (int idx_part = 1; idx_part < 3; idx_part++) {
+        for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
+            auto& line = lines[idx_line];
+            auto lines_parts = split_string(line, " ");
+            Plan_part part = {};
+            int dir = 0;
+            int cnt = 0;
+            if (idx_part == 1) {
+                switch (lines_parts[0][0]) {
+                case 'R': dir = 0; break;
+                case 'D': dir = 1; break;
+                case 'L': dir = 2; break;
+                case 'U': dir = 3; break;
+                }
+                cnt = std::atoi(lines_parts[1].c_str());
             }
+            else if (idx_part == 2) {
+                auto trimmed = lines_parts[2].substr(2, 6);
+                dir = hex2uint(trimmed.substr(5));
+                cnt = hex2uint(trimmed.substr(0, 5));
+            }
+            switch (dir) {
+            case 0: part.vert = 0; part.hor = 1; break;
+            case 1: part.vert = 1; part.hor = 0; break;
+            case 2: part.vert = 0; part.hor = -1; break;
+            case 3: part.vert = -1; part.hor = 0; break;
+            }
+            part.cnt = cnt;
+            plan_parts[idx_line] = part;
         }
+
+        int min_x = std::numeric_limits<int>::max();
+        int max_x = std::numeric_limits<int>::min();
+        int min_y = std::numeric_limits<int>::max();
+        int max_y = std::numeric_limits<int>::min();
+        int cur_x = 0;
+        int cur_y = 0;
+
+        for (auto& part : plan_parts) {
+            part.start_x = cur_x;
+            part.start_y = cur_y;
+            cur_x += part.hor * part.cnt;
+            cur_y += part.vert * part.cnt;
+            part.end_x = cur_x;
+            part.end_y = cur_y;
+            min_x = cur_x < min_x ? cur_x : min_x;
+            min_y = cur_y < min_y ? cur_y : min_y;
+            max_x = cur_x > max_x ? cur_x : max_x;
+            max_y = cur_y > max_y ? cur_y : max_y;
+        }
+
+        for (auto& part : plan_parts) {
+            part.start_x -= min_x;
+            part.start_y -= min_y;
+            part.end_x -= min_x;
+            part.end_y -= min_y;
+        }
+
+        max_x -= min_x;
+        max_y -= min_y;
+        min_x = 0;
+        min_y = 0;
+
+        unsigned int w = max_x + 1;
+        unsigned int h = max_y + 1;
+        std::cout << std::format("Part {}\n  Num. edges: {}\n  X/Y max: {} / {}", idx_part, plan_parts.size(), max_x, max_y) << std::endl;
+
+        // TODO: Ta bort alla horisontella linjer. I de fall som de horisontella linjerna är som "lock" på en u-form: kapa bort den 
+        //  överlappande punkten från de två intilliggande vertikala linjerna. Då kommer alla vertikala linjer bidra till en "crossing".
+        //  Vi kan t ex ha en buffer som vet när det finns crossings för varje vertikal linje (rad). Eller så beräknar vi intersection
+        //  med alla edges för varje rad. Fast det är långsammare.
     }
 
-    //for (int row = 0; row < output.size(); row++) {
-    //    std::cout << row << ": ";
-    //    for (auto c : output[row]) {
-    //        std::cout << c;
+
+    //std::vector<std::vector<char>> output(h, std::vector<char>(w, '.'));
+    //std::vector<std::vector<bool>> is_crossing(h, std::vector<bool>(w, false));
+
+    //for (int idx_part = 0; idx_part < plan_parts.size(); idx_part++) {
+    //    auto& p = plan_parts[idx_part];
+    //    for (int i = 0; i < p.cnt; i++) {
+    //        output[p.start_y + p.vert * i][p.start_x + p.hor * i] = '#';
     //    }
-    //    std::cout << std::endl;
+    //    auto idx_prev = (idx_part + plan_parts.size() - 1) % plan_parts.size();
+    //    auto idx_next = (idx_part + plan_parts.size() + 1) % plan_parts.size();
+    //    auto& p_prev = plan_parts[idx_prev];
+    //    auto& p_next = plan_parts[idx_next];
+    //    if (p.vert == 0 && (p_prev.vert != 0 && p_next.vert != 0) && (p_prev.vert == p_next.vert)) {
+    //        auto p_max_x = p.start_x > p.end_x ? p.start_x : p.end_x;
+    //        is_crossing[p.start_y][p_max_x] = true;
+    //    }
+    //    if (p.vert != 0) {
+    //        for (int i = 1; i < p.cnt; i++) {
+    //            is_crossing[p.start_y + p.vert * i][p.start_x] = true;
+    //        }
+    //    }
     //}
 
-    for (int row = 0; row < h; row++) {
-        int crossings = 0;
-        for (int col = 0; col < w; col++) {
-            if (is_crossing[row][col]) {
-                crossings++;
-            }
-            else if (crossings % 2 == 1) {
-                output[row][col] = '#';
-            }
-        }
-    }
+    //for (int row = 0; row < h; row++) {
+    //    int crossings = 0;
+    //    for (int col = 0; col < w; col++) {
+    //        if (is_crossing[row][col]) {
+    //            crossings++;
+    //        }
+    //        else if (crossings % 2 == 1) {
+    //            output[row][col] = '#';
+    //        }
+    //    }
+    //}
 
-    std::cout << std::endl;
-
-    int added = 0;
-
-    for (int row = 0; row < output.size(); row++) {
-        for (auto c : output[row]) {
-            if (c == '#') {
-                added++;
-            }
-        }
-    }
+    //int added = 0;
 
     //for (int row = 0; row < output.size(); row++) {
-    //    std::cout << row << ": ";
     //    for (auto c : output[row]) {
-    //        std::cout << c;
+    //        if (c == '#') {
+    //            added++;
+    //        }
     //    }
-    //    std::cout << std::endl;
     //}
-    
-    std::cout << std::format("AOC18-{}: {}", 1, added) << std::endl;
+
+    //std::cout << std::format("AOC18-{}: {}", 1, added) << std::endl;
 }
 
 void aoc19() {
