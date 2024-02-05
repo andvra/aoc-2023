@@ -11,8 +11,8 @@
 #include <bitset>
 
 std::vector<std::string> read_file(std::string fn) {
-    //std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
-    std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
+    std::string root_dir = R"(D:\dev\test\aoc-2023\input\)";
+    //std::string root_dir = R"(C:\Users\andre\source\test\aoc-2023\input\)";
     fn = root_dir + fn;
     std::ifstream infile(fn);
     std::string line;
@@ -23,16 +23,20 @@ std::vector<std::string> read_file(std::string fn) {
         ret.push_back(line);
     }
 
+    if (ret.size() == 0) {
+        std::cout << "No lines read. Is the root_dir set correctly?" << std::endl;
+    }
+
     return ret;
 }
 
 std::vector<std::string> split_string(std::string s, std::string delimiter) {
     std::vector<std::string> ret = {};
 
-    int offset = 0;
+    size_t offset = 0;
 
     while (true) {
-        int idx = s.find(delimiter, offset);
+        size_t idx = s.find(delimiter, offset);
         if (idx == -1) {
             ret.push_back(s.substr(offset));
             break;
@@ -68,13 +72,15 @@ std::vector<double> linear_solver(std::vector<std::vector<double>> input) {
                 return {};
             }
         }
+
         // 2. Scale row
-        double factor = input[variables_complete][variables_complete];
-        if (factor != 1) {
+        double scale_factor = input[variables_complete][variables_complete];
+        if (scale_factor != 1) {
             for (int i = variables_complete; i < input[variables_complete].size(); i++) {
-                input[variables_complete][i] /= factor;
+                input[variables_complete][i] /= scale_factor;
             }
         }
+
         // 3. Multiply onto other rows
         for (int idx_row = 0; idx_row < input.size(); idx_row++) {
             if (idx_row == variables_complete) {
@@ -256,7 +262,7 @@ void aoc01() {
                 while (!done) {
                     bool found_any = false;
                     int min_idx = 10000;
-                    int pos[9] = {};
+                    size_t pos[9] = {};
                     for (int i = 0; i < to_replace.size(); i++) {
                         auto cur_pos = s.find(to_replace[i]);
                         if (cur_pos != std::string::npos) {
@@ -394,13 +400,14 @@ void aoc04() {
         for (auto& n : my_number_string) {
             numbers.insert(std::atoi(n.c_str()));
         }
-        int cnt_before = numbers.size();
+
+        auto cnt_before = numbers.size();
         for (auto& n : win_number_string) {
             numbers.insert(std::atoi(n.c_str()));
         }
-        int cnt_after = numbers.size();
+        auto cnt_after = numbers.size();
 
-        int num_missed_winners = cnt_after - cnt_before;
+        auto num_missed_winners = cnt_after - cnt_before;
         int num_winners = win_number_string.size() - num_missed_winners;
 
         int cur_ret = 0;
@@ -1909,7 +1916,7 @@ void aoc18() {
         return ret;
         };
 
-    for (int idx_part = 1; idx_part < 3; idx_part++) {
+    for (int idx_part = 1; idx_part <= 2; idx_part++) {
         for (int idx_line = 0; idx_line < lines.size(); idx_line++) {
             auto& line = lines[idx_line];
             auto lines_parts = split_string(line, " ");
